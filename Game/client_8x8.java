@@ -1,5 +1,11 @@
+package Game;
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
+import java.util.Scanner;
+import java.util.concurrent.ThreadLocalRandom;
+
+import Game.Decoder.stringToInt;
 
 class Client {
 	public static void main(String[] args) {
@@ -7,6 +13,15 @@ class Client {
 		BufferedInputStream input;
 		BufferedOutputStream output;
 		int[][] board = new int[8][8];
+		//from tictactoe :
+		Board board8x8 = new Board();
+		stringToInt decoderEntrer = new stringToInt();
+		System.out.println("Svp entrer les cases que vous voulez jouer comme suit (x,y), exemple : A1,b2,c3)");
+		Scanner myObj = new Scanner(System.in);
+		CPUPlayer aiMachine = new CPUPlayer(null);
+		Move newMoveHuman = new Move();
+		//tant que min value game is ongoing;
+		int scoreKeeper = Integer.MIN_VALUE;
 
 		try {
 			MyClient = new Socket("localhost", 8888);
@@ -33,17 +48,34 @@ class Client {
 					int x = 0, y = 0;
 					for (int i = 0; i < boardValues.length; i++) {
 						board[x][y] = Integer.parseInt(boardValues[i]);
+						if(Integer.parseInt(boardValues[i]) == 2)
+						{
+							board8x8.getBoard()[7-x][7-y] = Mark.BLACK;
+							board8x8.setBlackPieceCounter(board8x8.getBlackPiececounter() + 1);
+						}
+
+						if(Integer.parseInt(boardValues[i]) == 4)
+						{
+							board8x8.getBoard()[7-x][7-y] = Mark.RED;
+							board8x8.setRedPieceCounter(board8x8.getRedPieceCounter() + 1);
+						}
 						x++;
 						if (x == 8) {
 							x = 0;
 							y++;
 						}
 					}
+
+					// AI algorythme
+					board8x8.display(board8x8.getMoveList(Mark.RED));
 					System.out.println("Nouvelle partie! Vous jouer blanc, entrez votre premier coup : ");
+					//code pour algorythme ici humain ! a remplacer par ai par la suite
 					String move = null;
 					move = console.readLine();
 					output.write(move.getBytes(), 0, move.length());
 					output.flush();
+
+
 				}
 				// Debut de la partie en joueur Noir
 				if (cmd == '2') {
@@ -110,4 +142,24 @@ class Client {
 		}
 
 	}
+
+
+	public static void cpuMovePlay(Board board, CPUPlayer aiMachine)
+	{
+		ArrayList<Move> aiPossibleNextMove= aiMachine.getNextMoveMinMax(board);
+		System.out.println("Move ayant meme score : ");
+		aiPossibleNextMove.forEach( (movePossible) -> { System.out.print(movePossible.toString() +" ; ");});
+		System.out.println();
+		System.out.println("Nombre de node explorer : " + aiMachine.getNumOfExploredNodes());
+		//joue un move random de la liste 
+		int random = ThreadLocalRandom.current().nextInt(0, aiPossibleNextMove.size());
+		board.play(aiPossibleNextMove.get(random), aiMachine.getCpuMark());
+	}
+
+
+	public void populateBoard()
+	{
+		
+	}
+
 }
