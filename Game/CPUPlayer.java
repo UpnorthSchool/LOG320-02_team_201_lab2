@@ -19,14 +19,16 @@ public class CPUPlayer
     private Mark cpuMARK;
     private Mark opponentMARK;
     private ArrayList<Move> movePossibleUncheck = new ArrayList<>();
-    public AlphaBeta miniMax;
+    public MinMax miniMax;
+    //starting at 3 move ahead
+    private int depth = 1;
 
     // Le constructeur reçoit en paramètre le
     // joueur MAX (rouge ou black)
     public CPUPlayer(Mark cpu){
         setCpuMark(cpu);
         setOpponentMark((cpu == Mark.RED) ? Mark.BLACK : Mark.RED);
-        miniMax = new AlphaBeta(cpu);
+        miniMax = new MinMax(cpu);
     }
 
     // Ne pas changer cette méthode
@@ -46,7 +48,10 @@ public ArrayList<Move> getNextMoveMinMax(Board board)
     for(Move move : getMovePossibleUncheck(board))
     {
         board.play(move, cpuMARK);
-        int score = miniMax.alphaBeta(board, getOpponentMark(), this, Integer.MIN_VALUE, Integer.MAX_VALUE);
+        //alphabeta
+        // int score = miniMax.alphaBeta(board, getOpponentMark(), this, Integer.MIN_VALUE, Integer.MAX_VALUE);
+        //minmax
+        int score = miniMax.minMax(board, getOpponentMark(), this, depth);
         board.undoMove(move, cpuMARK);
         
         if(score > bestScore) {

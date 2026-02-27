@@ -9,7 +9,7 @@ public class MinMax {
 
     
 
-    public int minMax(Board board, Mark minMaxMark, CPUPlayer nbExploredNode)
+    public int minMax(Board board, Mark minMaxMark, CPUPlayer nbExploredNode, int depth)
     {
 
         nbExploredNode.incrementNodeCounter();
@@ -29,7 +29,7 @@ public class MinMax {
             for(Move move : board.getMoveList(minMaxMark))
             {
                 board.play(move, minMaxMark);
-                int score = minMax(board, getOpponentMark(minMaxMark), nbExploredNode);
+                int score = minMax(board, getOpponentMark(minMaxMark), nbExploredNode, depth - 1);
                 board.undoMove(move, minMaxMark);
                 bestScore = Math.max(bestScore, score);
             }
@@ -42,7 +42,7 @@ public class MinMax {
             for(Move move : board.getMoveList(minMaxMark))
             {
                 board.play(move, minMaxMark);
-                int score = minMax(board, getOpponentMark(minMaxMark), nbExploredNode);
+                int score = minMax(board, getOpponentMark(minMaxMark), nbExploredNode, depth - 1);
                 board.undoMove(move, minMaxMark);
                 bestScore = Math.min(bestScore, score);
             }

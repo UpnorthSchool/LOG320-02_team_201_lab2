@@ -13,6 +13,12 @@ public class Board
     private int redPieceCounter         = 0 ; 
     private int blackPieceCounter       = 0 ;
 
+
+    /////
+    /// poids des evaluations
+    /// 
+    int poidsMateriel = 2;
+    int avancePion    = 1;
     //ajout de couleur, pour le plaisir du display.
     // Source - https://stackoverflow.com/a/5762502
     public static final String ANSI_RESET = "\u001B[0m";
@@ -62,7 +68,10 @@ public class Board
     //          -30000 pour une défaite
     // Ne pas changer la signature de cette méthode
     public int evaluate(Mark mark){
+        int scoreToReturn = 0;
         Mark adversaireXO = (mark == Mark.RED) ? Mark.BLACK : Mark.RED;
+        int ourpiece      = (mark == Mark.RED) ? redPieceCounter : blackPieceCounter ;
+        int ennemyPiece   = (mark == Mark.RED) ? blackPieceCounter : redPieceCounter;
 
         //verificationvictoire 
         if(verifierVictoire(mark))
@@ -73,10 +82,11 @@ public class Board
         {
             return -30000;
         }
-      
-
+        
+        scoreToReturn     = (ourpiece - ennemyPiece) * poidsMateriel;
+    
        
-        return Integer.MIN_VALUE;
+        return scoreToReturn;
         
     }
 

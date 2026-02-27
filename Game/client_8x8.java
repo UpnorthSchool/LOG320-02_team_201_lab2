@@ -16,7 +16,7 @@ class Client {
 		//from tictactoe :
 		Board board8x8 = new Board();
 		stringToInt decoderEntrer = new stringToInt();
-		System.out.println("Svp entrer les cases que vous voulez jouer comme suit (x,y), exemple : A1,b2,c3)");
+		System.out.println("Svp entrer les cases que vous voulez jouer comme suit xy-x2y2, exemple : A1-b2, c2-d3,d3-c2)");
 		Scanner myObj = new Scanner(System.in);
 		CPUPlayer aiMachine = new CPUPlayer(null);
 		Move newMoveHuman = new Move();
@@ -68,6 +68,8 @@ class Client {
 
 					// AI algorythme
 					board8x8.display(board8x8.getMoveList(Mark.RED));
+					aiMachine= new CPUPlayer(Mark.RED);
+					cpuMovePlay(board8x8, aiMachine);
 					System.out.println("Nouvelle partie! Vous jouer blanc, entrez votre premier coup : ");
 					//code pour algorythme ici humain ! a remplacer par ai par la suite
 					String move = null;
