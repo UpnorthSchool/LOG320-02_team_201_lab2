@@ -64,31 +64,7 @@ public class Board
     }
 
 
-    // retourne  30000 pour une victoire
-    //          -30000 pour une défaite
-    // Ne pas changer la signature de cette méthode
-    public int evaluate(Mark mark){
-        int scoreToReturn = 0;
-        Mark adversaireXO = (mark == Mark.RED) ? Mark.BLACK : Mark.RED;
-        int ourpiece      = (mark == Mark.RED) ? redPieceCounter : blackPieceCounter ;
-        int ennemyPiece   = (mark == Mark.RED) ? blackPieceCounter : redPieceCounter;
-
-        //verificationvictoire 
-        if(verifierVictoire(mark))
-        {
-            return 30000;
-        }
-        if(verifierVictoire(adversaireXO))
-        {
-            return -30000;
-        }
-        
-        scoreToReturn     = (ourpiece - ennemyPiece) * poidsMateriel;
     
-       
-        return scoreToReturn;
-        
-    }
 
     //display des moves possibles des pieces avant minmax
 
@@ -110,7 +86,6 @@ public class Board
     //////// serie evaluation pour le jeu mieux diviser pour meilleur comprehension du minmax
     /// appri srecemment, possibiliter java de retourner un bool avec juste des verif,
     /// division des evaluations sur plusieurs ligne vue sur stack overflow
-    /// //@TODO modifier code pour evaluation pour victoire breakthrough - derniere ranger oubien plus dennemi
     public boolean verifierVictoire(Mark mark)
     {
         boolean victoire = false;
@@ -119,11 +94,14 @@ public class Board
         {
             for(int i = 0 ; i < boardSize ; i ++)
             {
-                victoire = (board[i][0] == Mark.BLACK);
+                if(board[i][0] == Mark.BLACK)
+                {
+                    return victoire = true;
+                }
             }
             if(getRedPieceCounter() == 0)
             {
-                victoire = true;
+                return victoire = true;
             }
         }
         
@@ -132,11 +110,14 @@ public class Board
             // verification victoire si une piece est sur la derniere ligne ennemy ou si nbpiece noire a 0 
             for(int j = 0 ; j < boardSize ; j ++)
             {
-                victoire = (board[j][7] == Mark.RED);
+                if(board[j][7] == Mark.RED)
+                {
+                    return victoire = true;
+                }
             }
             if(getBlackPiececounter() == 0)
             {
-                victoire = true;
+                return victoire = true;
             }
             
         }
@@ -199,6 +180,83 @@ public class Board
         return moveAvailableNow;
     }
 
+
+
+    ///////evaluation
+    /// and heuristic here 
+    /// 
+    // retourne  30000 pour une victoire
+    //          -30000 pour une défaite
+    // Ne pas changer la signature de cette méthode
+    public int evaluate(Mark mark){
+        int scoreToReturn = 0;
+        Mark adversaireXO = (mark == Mark.RED) ? Mark.BLACK : Mark.RED;
+        int ourpiece      = (mark == Mark.RED) ? redPieceCounter : blackPieceCounter ;
+        int ennemyPiece   = (mark == Mark.RED) ? blackPieceCounter : redPieceCounter;
+
+        //verificationvictoire (a changer peutetre vers integer maxvalue et min value dependamenet nos scorings.)
+        if(verifierVictoire(mark))
+        {
+            return 30000;
+        }
+        if(verifierVictoire(adversaireXO))
+        {
+            return -30000;
+        }
+        //materielle
+        scoreToReturn     = (ourpiece - ennemyPiece) * poidsMateriel;
+        //nombre de move possible a verifier si important
+        //??
+
+        //se rapproche de la victoire
+        for(int y = 0; y < boardSize; y++)
+        {
+            for(int x = 0; x < boardSize; x++)
+            {
+
+                if(board[x][y] == mark){
+
+                    // advancement bonus
+                    if(mark == Mark.RED)
+                        scoreToReturn += y;        // plus on avance vers victoire
+                    else
+                        scoreToReturn += (7 - y);  // lpus on est loin alors moin bon
+                }
+
+                else if(board[x][y] == adversaireXO){
+
+                    if(adversaireXO == Mark.RED)
+                        scoreToReturn -= y;
+                    else
+                        scoreToReturn -= (7 - y);
+                }
+
+                // heuristic test pour voir si on peux capturer ou on se fait capturer;
+                scoreToReturn += (getMoveList(mark).size() - getMoveList(adversaireXO).size()) * 2;
+
+                for(Move m : getMoveList(mark))
+                    if(m.isCapture()) scoreToReturn += 3;
+
+                for(Move m : getMoveList(adversaireXO))
+                    if(m.isCapture()) scoreToReturn -= 3;
+
+                scoreToReturn += (4 - Math.abs(x - 3));
+            }
+        }
+
+        
+       
+        return scoreToReturn;
+        
+    }
+
+
+    //heuristic : https://www.comp.nus.edu.sg/~kanmy/courses/3243_2006/hw-breakthrough.html
+
+    public int passedPawn()
+    {return 0;}
+
+    ///getter and setteer
     public int getBoardSize()
     {
         return boardSize;

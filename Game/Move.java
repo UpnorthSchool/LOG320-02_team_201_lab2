@@ -72,6 +72,11 @@ public class Move
         return captured;
     }
 
+    //verification si case capturer
+    public boolean isCapture() 
+    {
+        return captured != Mark.EMPTY;
+    }
 
 
     @Override

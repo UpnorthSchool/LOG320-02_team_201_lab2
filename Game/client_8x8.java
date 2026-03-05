@@ -184,7 +184,6 @@ class Client {
 		System.out.println("Move ayant meme score : ");
 		aiPossibleNextMove.forEach( (movePossible) -> { System.out.print(movePossible.toString() +" ; ");});
 		System.out.println();
-		System.out.println("Nombre de node explorer : " + aiMachine.getNumOfExploredNodes());
 		//joue un move random de la liste 
 		int random = ThreadLocalRandom.current().nextInt(0, aiPossibleNextMove.size());
 		Move moveplayed = aiPossibleNextMove.get(random);

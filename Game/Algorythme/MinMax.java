@@ -17,7 +17,7 @@ public class MinMax {
        //attention ! icidoit evaluer le score toujorus du point de vue du AI et non alterner
        int scoreSortie = board.evaluate(cpuMARK);
        //condition de sortie iciii
-       if(scoreSortie == 100 || scoreSortie == -100 || scoreSortie == 0) return scoreSortie;
+       if(depth == 0 || board.verifierVictoire(Mark.RED) || board.verifierVictoire(Mark.BLACK)) return scoreSortie;
 
        // definition du joueur 
        boolean isMax = (minMaxMark == cpuMARK);

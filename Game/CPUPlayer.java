@@ -21,7 +21,7 @@ public class CPUPlayer
     private ArrayList<Move> movePossibleUncheck = new ArrayList<>();
     public MinMax miniMax;
     //starting at 3 move ahead
-    private int depth = 1;
+    private int depth = 3;
 
     // Le constructeur reçoit en paramètre le
     // joueur MAX (rouge ou black)
@@ -51,7 +51,7 @@ public ArrayList<Move> getNextMoveMinMax(Board board)
         //alphabeta
         // int score = miniMax.alphaBeta(board, getOpponentMark(), this, Integer.MIN_VALUE, Integer.MAX_VALUE);
         //minmax
-        int score = miniMax.minMax(board, getOpponentMark(), this, depth);
+        int score = miniMax.minMax(board, getOpponentMark(), this, depth - 1);
         board.undoMove(move, cpuMARK);
         
         if(score > bestScore) {
@@ -66,7 +66,7 @@ public ArrayList<Move> getNextMoveMinMax(Board board)
         }
         // si pas de meilleur move,prendre le seul bon move"
     }
-
+    System.out.println("nb node explored : " + getNumOfExploredNodes());
     return bestMoves;
 }
     // Retourne la liste des coups possibles.  Cette liste contient
@@ -118,6 +118,7 @@ public ArrayList<Move> getNextMoveMinMax(Board board)
 
     public void incrementNodeCounter()
     {
-        this.numExploredNodes++;
+       this.numExploredNodes ++;
     }
+
 }
