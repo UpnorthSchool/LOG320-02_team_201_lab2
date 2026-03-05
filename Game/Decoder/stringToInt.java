@@ -1,20 +1,27 @@
 package Game.Decoder;
+
+import Game.Move;
+
 public class stringToInt {
 
-    int moveDecoded         = 0;
+    Move moveDecoded = new Move();
     int colonneDecode       = 0;
     int ligneDecode         = 0;
-    public int decode(String toDecode)
+    public Move decode(String toDecode)
     {
-       
+        toDecode = removeWhitespace(toDecode);
+        moveDecoded.setFromCol(decodeCol(toDecode.charAt(0)));
+        moveDecoded.setFromRow(decodeLigne(toDecode.charAt(1)));
+        moveDecoded.setTowardsCol(decodeCol(toDecode.charAt(3)));
+        moveDecoded.setTowardsRow(decodeLigne(toDecode.charAt(4)));
         return moveDecoded;
     }
 
 
 
-    public int decodeCol(String decoderColonne)
+    public int decodeCol(char decoderColonne)
     {
-        switch(decoderColonne.charAt(0))
+        switch(decoderColonne)
                 {
                     //colonne
                     // lire comme un chiffre binaire. 2exposant 2 = carr/e en bas a gauche,colonnec donc derniere colonne tictactoe
@@ -41,9 +48,9 @@ public class stringToInt {
     }
 
 
-    public int decodeLigne(String decoderLigner)
+    public int decodeLigne(char decoderLigner)
     {
-         switch (decoderLigner.charAt(1)) {
+         switch (decoderLigner) {
             case '1':
                 ligneDecode = 0;break;
             case '2':
@@ -66,5 +73,15 @@ public class stringToInt {
 
         return ligneDecode;
     }
+
+    //from stackoverflow removing whitespace
+    // Source - https://stackoverflow.com/a/63270077
+    // Posted by Bohemian
+    // Retrieved 2026-03-05, License - CC BY-SA 4.0
+    //added trim end and beginning and lowercase
+    public static String removeWhitespace(String s) {
+        return s.replaceAll("\\s", "").trim().toLowerCase(); // use regex
+    }
+
     
 }
