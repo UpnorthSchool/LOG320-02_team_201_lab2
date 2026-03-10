@@ -1,5 +1,6 @@
 package Game;
 import java.util.ArrayList;
+import java.util.List;
 
 // IMPORTANT: Il ne faut pas changer la signature des méthodes
 // de cette classe, ni le nom de la classe.
@@ -14,11 +15,7 @@ public class Board
     private int blackPieceCounter       = 0 ;
 
 
-    /////
-    /// poids des evaluations
-    /// 
-    int poidsMateriel = 2;
-    int avancePion    = 1;
+
     //ajout de couleur, pour le plaisir du display.
     // Source - https://stackoverflow.com/a/5762502
     public static final String ANSI_RESET = "\u001B[0m";
@@ -42,29 +39,29 @@ public class Board
         return board;
     }
 
-    // Place la pièce 'mark' sur le plateau, à la
-    // position spécifiée dans Move
-    // Ne pas changer la signature de cette méthode
-    public void play(Move m, Mark mark){
-        //verifier ou land la piece 
-        m.setCaptured(board[m.getTowardsCol()][m.getTowardsRow()]);
-        //bouger notre piece
+    public void play(Move m, Mark mark)
+    {
+        // Toujours lire depuis le plateau, jamais depuis m.getCaptured()
+        // qui pourrait contenir une valeur residuelle d'un appel precedent
+        Mark contenuCase = board[m.getTowardsCol()][m.getTowardsRow()];
+        m.setCaptured(contenuCase);
+
+        if (contenuCase == Mark.RED)         redPieceCounter--;
+        else if (contenuCase == Mark.BLACK)  blackPieceCounter--;
+
         board[m.getTowardsCol()][m.getTowardsRow()] = mark;
-        //vider la piece dou on vient
-        board[m.getFromCol()][m.getFromRow()] = Mark.EMPTY;
+        board[m.getFromCol()][m.getFromRow()]        = Mark.EMPTY;
     }
 
     public void undoMove(Move moveUndo, Mark mark)
     {
-        //ramenner la case a sa place originale
-        board[moveUndo.getFromCol()][moveUndo.getFromRow()] = mark;
-
-        //remettre ce qui a ete capturer, vide ou piece
+        board[moveUndo.getFromCol()][moveUndo.getFromRow()]       = mark;
         board[moveUndo.getTowardsCol()][moveUndo.getTowardsRow()] = moveUndo.getCaptured();
+
+        // Restaurer le compteur uniquement si une vraie piece avait ete capturee
+        if (moveUndo.getCaptured() == Mark.RED)         redPieceCounter++;
+        else if (moveUndo.getCaptured() == Mark.BLACK)  blackPieceCounter++;
     }
-
-
-    
 
     //display des moves possibles des pieces avant minmax
 
@@ -124,55 +121,61 @@ public class Board
         return victoire;
 
     }
-
-
-    //verification que le mouvement est sur le board 
-    public boolean moveValide(int xColPosition, int yLignePosition)
+        // Verification des bornes uniquement — sans verifier le contenu de la case
+    public boolean estSurLeBoard(int xColPosition, int yLignePosition)
     {
-        //check on board and check if case empty
-        if(xColPosition > -1 && xColPosition < boardSize && yLignePosition > -1 && yLignePosition < boardSize && board[xColPosition][yLignePosition] == Mark.EMPTY)
-        {
-            return true;
-        }
-        
-        return false;
-        
+        return xColPosition >= 0 && xColPosition < boardSize
+            && yLignePosition >= 0 && yLignePosition < boardSize;
     }
 
-    //listes des case disponbiles sur le board,comme demander dans l'enoncé
+    // Verification bornes ET case vide — pour les moves en ligne droite uniquement
+    public boolean moveValide(int xColPosition, int yLignePosition)
+    {
+        return estSurLeBoard(xColPosition, yLignePosition)
+            && board[xColPosition][yLignePosition] == Mark.EMPTY;
+    }
+
+
+
     public ArrayList<Move> getMoveList(Mark markSide)
     {
         ArrayList<Move> moveAvailableNow = new ArrayList<>();
-        int direction                    = (markSide == Mark.RED) ? +1 : -1;
-        for(int xCol = 0 ; xCol < getBoardSize() ; xCol++)
-        {
-            for(int yLig = 0; yLig < getBoardSize() ; yLig++)
-            {
-                //regarde les pieces de la meme couleur seulement, pas besoin de verifier les moves de lautre equipe
-                if( getBoard()[xCol][yLig] == markSide)
-                {
-                    //avance ou recule dune ligne
-                    int ligneAvancement     =  yLig + direction;
-                    // si la ligne est sur le board
-                    if(moveValide(xCol, ligneAvancement))
-                    {
-                        //verifier une case en avant, sans ennemy, alors bon move
-                        if(getBoard()[xCol][ligneAvancement] == Mark.EMPTY)
-                        {
-                            moveAvailableNow.add(new Move(xCol,yLig,xCol,ligneAvancement));
-                        }
+        int direction   = (markSide == Mark.RED) ? +1 : -1;
+        Mark adversaire = (markSide == Mark.RED) ? Mark.BLACK : Mark.RED;
 
-                        //verification diagonal et case empty ou adversaire
-                        if(moveValide(xCol - 1, ligneAvancement) && getBoard()[xCol - 1 ][ligneAvancement] != markSide)
-                        {
-                            moveAvailableNow.add(new Move(xCol, yLig, xCol - 1, ligneAvancement));
-                        }
-                        //autre diagonal
-                        if(moveValide(xCol + 1, ligneAvancement) && getBoard()[xCol + 1 ][ligneAvancement] != markSide)
-                        {
-                            moveAvailableNow.add(new Move(xCol, yLig, xCol + 1, ligneAvancement));
-                        }
-                        
+        for (int xCol = 0; xCol < getBoardSize(); xCol++)
+        {
+            for (int yLig = 0; yLig < getBoardSize(); yLig++)
+            {
+                if (getBoard()[xCol][yLig] == markSide)
+                {
+                    int ligneAvancement = yLig + direction;
+
+                    // Ligne droite : case doit etre vide (moveValide)
+                    if (moveValide(xCol, ligneAvancement))
+                    {
+                        moveAvailableNow.add(new Move(xCol, yLig, xCol, ligneAvancement));
+                    }
+
+                    // Diagonal gauche : case doit etre sur le board (estSurLeBoard)
+                    // et ne pas contenir un allie — peut etre vide OU ennemi
+                    if (estSurLeBoard(xCol - 1, ligneAvancement)
+                        && getBoard()[xCol - 1][ligneAvancement] != markSide)
+                    {
+                        Move m = new Move(xCol, yLig, xCol - 1, ligneAvancement);
+                        if (getBoard()[xCol - 1][ligneAvancement] == adversaire)
+                            m.setCaptured(adversaire);
+                        moveAvailableNow.add(m);
+                    }
+
+                    // Diagonal droit : meme logique
+                    if (estSurLeBoard(xCol + 1, ligneAvancement)
+                        && getBoard()[xCol + 1][ligneAvancement] != markSide)
+                    {
+                        Move m = new Move(xCol, yLig, xCol + 1, ligneAvancement);
+                        if (getBoard()[xCol + 1][ligneAvancement] == adversaire)
+                            m.setCaptured(adversaire);
+                        moveAvailableNow.add(m);
                     }
                 }
             }
@@ -182,75 +185,130 @@ public class Board
 
 
 
+
+
+
     ///////evaluation
     /// and heuristic here 
     /// 
-    // retourne  30000 pour une victoire
-    //          -30000 pour une défaite
-    // Ne pas changer la signature de cette méthode
-    public int evaluate(Mark mark){
-        int scoreToReturn = 0;
-        Mark adversaireXO = (mark == Mark.RED) ? Mark.BLACK : Mark.RED;
-        int ourpiece      = (mark == Mark.RED) ? redPieceCounter : blackPieceCounter ;
-        int ennemyPiece   = (mark == Mark.RED) ? blackPieceCounter : redPieceCounter;
+    /// 
+    /// 
+        /////
+    public int evaluate(Mark mark)
+    {
+        Mark adversaire = (mark == Mark.RED) ? Mark.BLACK : Mark.RED;
 
-        //verificationvictoire (a changer peutetre vers integer maxvalue et min value dependamenet nos scorings.)
-        if(verifierVictoire(mark))
-        {
-            return 30000;
-        }
-        if(verifierVictoire(adversaireXO))
-        {
-            return -30000;
-        }
-        //materielle
-        scoreToReturn     = (ourpiece - ennemyPiece) * poidsMateriel;
-        //nombre de move possible a verifier si important
-        //??
+        int score = 0;
 
-        //se rapproche de la victoire
-        for(int y = 0; y < boardSize; y++)
+        // --- Poids ---
+        int poidsMateriel   = 15;
+        int poidsCentre     =  1;
+        int poidsProtection =  3;
+        int poidsVulnerable = -5;
+
+        // Table d'avancement exponentielle : plus on approche, plus c'est urgent
+        int[] tableAvancement = {0, 1, 2, 4, 8, 16, 32, 100};
+
+        // --- Avantage materiel ---
+        // Les compteurs sont maintenus a jour par play() et undoMove()
+        int nosPieces      = (mark == Mark.RED) ? redPieceCounter   : blackPieceCounter;
+        int piecesEnnemies = (mark == Mark.RED) ? blackPieceCounter : redPieceCounter;
+        score += (nosPieces - piecesEnnemies) * poidsMateriel;
+
+        // --- Parcours unique du plateau ---
+        for (int y = 0; y < boardSize; y++)
         {
-            for(int x = 0; x < boardSize; x++)
+            for (int x = 0; x < boardSize; x++)
             {
+                if (board[x][y] == mark)
+                {
+                    // Avancement exponentiel vers la ligne de victoire
+                    int rangee = (mark == Mark.RED) ? y : (boardSize - 1 - y);
+                    score += tableAvancement[rangee];
 
-                if(board[x][y] == mark){
+                    // Position centrale
+                    score += (4 - Math.abs(x - (boardSize / 2 - 1))) * poidsCentre;
 
-                    // advancement bonus
-                    if(mark == Mark.RED)
-                        scoreToReturn += y;        // plus on avance vers victoire
-                    else
-                        scoreToReturn += (7 - y);  // lpus on est loin alors moin bon
+                    // Protection : pion couvert par un allie derriere lui ?
+                    int yDerriere = (mark == Mark.RED) ? y - 1 : y + 1;
+                    boolean estProtege = false;
+                    if (yDerriere >= 0 && yDerriere < boardSize)
+                    {
+                        if (x - 1 >= 0        && board[x - 1][yDerriere] == mark) estProtege = true;
+                        if (x + 1 < boardSize && board[x + 1][yDerriere] == mark) estProtege = true;
+                    }
+
+                    if (estProtege)
+                        score += poidsProtection * (1 + rangee / 2);
+                    else if (rangee >= 3)
+                        score += poidsVulnerable * (rangee - 2);
                 }
+                else if (board[x][y] == adversaire)
+                {
+                    int rangee = (adversaire == Mark.RED) ? y : (boardSize - 1 - y);
+                    score -= tableAvancement[rangee];
 
-                else if(board[x][y] == adversaireXO){
+                    score -= (4 - Math.abs(x - (boardSize / 2 - 1))) * poidsCentre;
 
-                    if(adversaireXO == Mark.RED)
-                        scoreToReturn -= y;
-                    else
-                        scoreToReturn -= (7 - y);
+                    int yDerriere = (adversaire == Mark.RED) ? y - 1 : y + 1;
+                    boolean estProtege = false;
+                    if (yDerriere >= 0 && yDerriere < boardSize)
+                    {
+                        if (x - 1 >= 0        && board[x - 1][yDerriere] == adversaire) estProtege = true;
+                        if (x + 1 < boardSize && board[x + 1][yDerriere] == adversaire) estProtege = true;
+                    }
+
+                    if (estProtege)
+                        score -= poidsProtection * (1 + rangee / 2);
+                    else if (rangee >= 3)
+                        score -= poidsVulnerable * (rangee - 2);
                 }
-
-                // heuristic test pour voir si on peux capturer ou on se fait capturer;
-                scoreToReturn += (getMoveList(mark).size() - getMoveList(adversaireXO).size()) * 2;
-
-                for(Move m : getMoveList(mark))
-                    if(m.isCapture()) scoreToReturn += 3;
-
-                for(Move m : getMoveList(adversaireXO))
-                    if(m.isCapture()) scoreToReturn -= 3;
-
-                scoreToReturn += (4 - Math.abs(x - 3));
             }
         }
 
-        
-       
-        return scoreToReturn;
-        
+
+    // Remplacer la detection de pion libre par cette version corrigee
+
+    for (int x = 0; x < boardSize; x++)
+    {
+        for (int y = 0; y < boardSize; y++)
+        {
+            if (board[x][y] == adversaire)
+            {
+                int rangeeAdversaire = (adversaire == Mark.RED) ? y : (boardSize - 1 - y);
+
+                if (rangeeAdversaire >= 5)
+                {
+                    boolean estBloque = false;
+
+                    // Pour bloquer un pion ennemi, nos pions doivent se trouver
+                    // SUR LA MEME COLONNE OU ADJACENTE, entre lui et sa ligne de victoire.
+                    // Pour BLACK (avance vers y=0), ses pions sont bloques par nos pions
+                    // qui se trouvent a des y INFERIEURS (entre lui et y=0).
+                    // Pour RED (avance vers y=7), ses pions sont bloques par nos pions
+                    // qui se trouvent a des y SUPERIEURS (entre lui et y=7).
+
+                    int yVictoire = (adversaire == Mark.RED) ? boardSize - 1 : 0;
+                    int direction = (yVictoire > y) ? 1 : -1;
+
+                    for (int checkY = y + direction;
+                        checkY >= 0 && checkY < boardSize;
+                        checkY += direction)
+                    {
+                        if (board[x][checkY] == mark)                          { estBloque = true; break; }
+                        if (x > 0           && board[x-1][checkY] == mark)     { estBloque = true; break; }
+                        if (x < boardSize-1 && board[x+1][checkY] == mark)     { estBloque = true; break; }
+                    }
+
+                    if (!estBloque)
+                        score -= 50 * (rangeeAdversaire - 4);
+                }
+            }
+        }
     }
 
-
+        return score;
+    }
     //heuristic : https://www.comp.nus.edu.sg/~kanmy/courses/3243_2006/hw-breakthrough.html
 
     public int passedPawn()

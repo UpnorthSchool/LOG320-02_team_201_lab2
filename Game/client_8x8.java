@@ -180,7 +180,7 @@ class Client {
 	public static String cpuMovePlay(Board board, CPUPlayer aiMachine)
 	{
 		intToString encoderMoveAi = new intToString();
-		ArrayList<Move> aiPossibleNextMove= aiMachine.getNextMoveMinMax(board);
+		ArrayList<Move> aiPossibleNextMove= aiMachine.getNextMoveAB(board);
 		System.out.println("Move ayant meme score : ");
 		aiPossibleNextMove.forEach( (movePossible) -> { System.out.print(movePossible.toString() +" ; ");});
 		System.out.println();

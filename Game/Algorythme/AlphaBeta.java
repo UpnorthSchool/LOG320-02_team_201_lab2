@@ -7,75 +7,93 @@ import Game.Move;
 
 public class AlphaBeta {
 
+    // La marque appartenant au joueur IA (ne change jamais durant la partie)
     private Mark cpuMARK;
-    private int score;
-
-
-    
-
-    public int alphaBeta(Board board, Mark alphaBetaMark, CPUPlayer nbExploredNode, int alpha, int beta)
-    {
-
-        nbExploredNode.incrementNodeCounter();
-       //premier tour est toujours evaluer comme les min (mentioner par le prof )
-       //attention ! icidoit evaluer le score toujorus du point de vue du AI et non alterner
-       int scoreSortie = board.evaluate(cpuMARK);
-       //condition de sortie iciii
-       if(scoreSortie == 100 || scoreSortie == -100 || scoreSortie == 0) return scoreSortie;
-
-       // definition du joueur 
-       boolean isMax = (alphaBetaMark == cpuMARK);
-
-       int bestScore;
-       if(isMax)
-       { 
-            bestScore = Integer.MIN_VALUE;
-            for(Move move : board.getMoveList(alphaBetaMark))
-            {
-                board.play(move, alphaBetaMark);
-                bestScore = Math.max(bestScore,  alphaBeta(board, getOpponentMark(alphaBetaMark), nbExploredNode, alpha, beta));
-                board.undoMove(move, alphaBetaMark);
-                if(bestScore >= beta)
-                {
-                    break;
-                }
-                alpha = Math.max(bestScore, alpha);
-            }
-            return bestScore;
-
-            
-       }else
-       {
-          bestScore = Integer.MAX_VALUE;
-            for(Move move : board.getMoveList(alphaBetaMark))
-            {
-                board.play(move, alphaBetaMark);
-                bestScore = Math.min(bestScore, alphaBeta(board, getOpponentMark(alphaBetaMark), nbExploredNode, alpha, beta));
-                board.undoMove(move, alphaBetaMark);
-                if(bestScore <= alpha)
-                {
-                    break;
-                }
-                beta = Math.min(bestScore, beta);
-            }
-            return bestScore;
-       }
-
-    }
-
-
-
-
-    //permet de tracker quel joueur joue
 
     public AlphaBeta(Mark cpuMark)
     {
         this.cpuMARK = cpuMark;
     }
-    private Mark getOpponentMark(Mark mark) {
+
+    private Mark getOpponentMark(Mark mark)
+    {
         return (mark == Mark.RED) ? Mark.BLACK : Mark.RED;
     }
 
+    public int alphaBeta(Board board, Mark alphaBetaMark, CPUPlayer nbExploredNode, int alpha, int beta, int depth)
+    {
+        nbExploredNode.incrementNodeCounter();
+
+        // --- Verification des conditions terminales en PREMIER ---
+        // Identique au MinMax : on verifie la victoire avant toute evaluation.
+        // Le score est ajuste par la profondeur pour privilegier les victoires rapides.
+        if (board.verifierVictoire(cpuMARK))
+        {
+            return 30000 + depth;
+        }
+        if (board.verifierVictoire(getOpponentMark(cpuMARK)))
+        {
+            return -30000 - depth;
+        }
+
+        // --- Condition d'arret par profondeur ---
+        if (depth == 0)
+        {
+            return board.evaluate(cpuMARK);
+        }
+
+        // --- Determination du joueur courant ---
+        boolean isMax = (alphaBetaMark == cpuMARK);
+
+        if (isMax)
+        {
+            int bestScore = Integer.MIN_VALUE;
+
+            for (Move move : board.getMoveList(alphaBetaMark))
+            {
+                board.play(move, alphaBetaMark);
+                int score = alphaBeta(board, getOpponentMark(alphaBetaMark), nbExploredNode, alpha, beta, depth - 1);
+                board.undoMove(move, alphaBetaMark);
+
+                bestScore = Math.max(bestScore, score);
+
+                // Bug corrige 1 : mettre a jour alpha AVANT de verifier la coupure
+                // Dans votre version, vous mettiez alpha = Math.max(bestScore, alpha) APRES le break,
+                // ce qui signifie qu'alpha n'etait jamais mis a jour correctement.
+                alpha = Math.max(alpha, bestScore);
+
+                // Coupure beta : l'adversaire (minimiseur) ne choisira jamais cette branche
+                // car il a deja une option meilleure (beta) ailleurs.
+                if (bestScore >= beta)
+                {
+                    break;
+                }
+            }
+            return bestScore;
+        }
+        else
+        {
+            int bestScore = Integer.MAX_VALUE;
+
+            for (Move move : board.getMoveList(alphaBetaMark))
+            {
+                board.play(move, alphaBetaMark);
+                int score = alphaBeta(board, getOpponentMark(alphaBetaMark), nbExploredNode, alpha, beta, depth - 1);
+                board.undoMove(move, alphaBetaMark);
+
+                bestScore = Math.min(bestScore, score);
+
+                // Bug corrige 1 : mettre a jour beta AVANT de verifier la coupure
+                beta = Math.min(beta, bestScore);
+
+                // Coupure alpha : le maximiseur ne choisira jamais cette branche
+                // car il a deja une option meilleure (alpha) ailleurs.
+                if (bestScore <= alpha)
+                {
+                    break;
+                }
+            }
+            return bestScore;
+        }
+    }
 }
-
-
