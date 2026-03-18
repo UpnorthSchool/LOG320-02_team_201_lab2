@@ -314,18 +314,18 @@ public class Board
         int ennemyTempoMin = minMovesToWin(adversaire);
 
         if (ennemyTempoMin == 1)
-            score -= 50000; // il gagne au prochain coup — quasi defaite
+            score -= 2000;  // au lieu de 50000
         else if (ennemyTempoMin == 2)
-            score -= 8000;
+            score -= 800;   // au lieu de 8000
         else if (ennemyTempoMin == 3)
-            score -= 2000;
+            score -= 200;   // au lieu de 2000
 
         if (nosTempoMin == 1)
-            score += 50000;
-        else if (nosTempoMin == 2)
-            score += 8000;
-        else if (nosTempoMin == 3)
             score += 2000;
+        else if (nosTempoMin == 2)
+            score += 800;
+        else if (nosTempoMin == 3)
+            score += 200;
 
         return score;
     }

@@ -7,12 +7,22 @@ import Game.Move;
 
 public class AlphaBeta {
 
-    // La marque appartenant au joueur IA (ne change jamais durant la partie)
     private Mark cpuMARK;
+    private long startTime;
+    private long timeLimit;
+    public boolean timeOut;
 
     public AlphaBeta(Mark cpuMark)
     {
         this.cpuMARK = cpuMark;
+    }
+
+    // Appele par CPUPlayer avant chaque recherche
+    public void resetTimer(long startTime, long timeLimit)
+    {
+        this.startTime = startTime;
+        this.timeLimit = timeLimit;
+        this.timeOut   = false;
     }
 
     private Mark getOpponentMark(Mark mark)
@@ -22,11 +32,15 @@ public class AlphaBeta {
 
     public int alphaBeta(Board board, Mark alphaBetaMark, CPUPlayer nbExploredNode, int alpha, int beta, int depth)
     {
+        // Verifier le temps a CHAQUE noeud
+        if (System.currentTimeMillis() - startTime > timeLimit)
+        {
+            timeOut = true;
+            return 0; // valeur neutre, sera ignoree par CPUPlayer
+        }
+
         nbExploredNode.incrementNodeCounter();
 
-        // --- Verification des conditions terminales en PREMIER ---
-        // Identique au MinMax : on verifie la victoire avant toute evaluation.
-        // Le score est ajuste par la profondeur pour privilegier les victoires rapides.
         if (board.verifierVictoire(cpuMARK))
         {
             return 30000 + depth;
@@ -36,38 +50,31 @@ public class AlphaBeta {
             return -30000 - depth;
         }
 
-        // --- Condition d'arret par profondeur ---
         if (depth == 0)
         {
             return board.evaluate(cpuMARK);
         }
 
-        // --- Determination du joueur courant ---
         boolean isMax = (alphaBetaMark == cpuMARK);
 
         if (isMax)
         {
             int bestScore = Integer.MIN_VALUE;
 
-            for (Move move : board.getMoveList(alphaBetaMark))
+            for (Move move : board.getMoveListOrdered(alphaBetaMark))
             {
+                if (timeOut) break; // propagation immediate
+
                 board.play(move, alphaBetaMark);
                 int score = alphaBeta(board, getOpponentMark(alphaBetaMark), nbExploredNode, alpha, beta, depth - 1);
                 board.undoMove(move, alphaBetaMark);
 
+                if (timeOut) break;
+
                 bestScore = Math.max(bestScore, score);
+                alpha     = Math.max(alpha, bestScore);
 
-                // Bug corrige 1 : mettre a jour alpha AVANT de verifier la coupure
-                // Dans votre version, vous mettiez alpha = Math.max(bestScore, alpha) APRES le break,
-                // ce qui signifie qu'alpha n'etait jamais mis a jour correctement.
-                alpha = Math.max(alpha, bestScore);
-
-                // Coupure beta : l'adversaire (minimiseur) ne choisira jamais cette branche
-                // car il a deja une option meilleure (beta) ailleurs.
-                if (bestScore >= beta)
-                {
-                    break;
-                }
+                if (bestScore >= beta) break;
             }
             return bestScore;
         }
@@ -75,23 +82,20 @@ public class AlphaBeta {
         {
             int bestScore = Integer.MAX_VALUE;
 
-            for (Move move : board.getMoveList(alphaBetaMark))
+            for (Move move : board.getMoveListOrdered(alphaBetaMark))
             {
+                if (timeOut) break; // propagation immediate
+
                 board.play(move, alphaBetaMark);
                 int score = alphaBeta(board, getOpponentMark(alphaBetaMark), nbExploredNode, alpha, beta, depth - 1);
                 board.undoMove(move, alphaBetaMark);
 
+                if (timeOut) break;
+
                 bestScore = Math.min(bestScore, score);
+                beta      = Math.min(beta, bestScore);
 
-                // Bug corrige 1 : mettre a jour beta AVANT de verifier la coupure
-                beta = Math.min(beta, bestScore);
-
-                // Coupure alpha : le maximiseur ne choisira jamais cette branche
-                // car il a deja une option meilleure (alpha) ailleurs.
-                if (bestScore <= alpha)
-                {
-                    break;
-                }
+                if (bestScore <= alpha) break;
             }
             return bestScore;
         }
