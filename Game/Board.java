@@ -198,17 +198,15 @@ public class Board
     {
         Mark adversaire = (mark == Mark.RED) ? Mark.BLACK : Mark.RED;
 
-        if (verifierVictoire(mark))       return 100000;
-        if (verifierVictoire(adversaire)) return -100000;
 
         int score = 0;
 
         int poidsMateriel   =  3;
         int poidsCentre     =  1;
-        int poidsProtection =  3;
-        int poidsVulnerable = -5;
+        int poidsProtection =  2;
+        int poidsVulnerable = -3;
 
-        int[] tableAvancement = {0, 1, 2, 4, 8, 16, 32, 100};
+        int[] tableAvancement = {0, 1, 2, 3, 5, 8, 13, 25};
 
         int nosPieces      = (mark == Mark.RED) ? redPieceCounter   : blackPieceCounter;
         int piecesEnnemies = (mark == Mark.RED) ? blackPieceCounter : redPieceCounter;
