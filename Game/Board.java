@@ -313,13 +313,19 @@ public class Board
         int nosTempoMin    = minMovesToWin(mark);
         int ennemyTempoMin = minMovesToWin(adversaire);
 
-        if (nosTempoMin != Integer.MAX_VALUE || ennemyTempoMin != Integer.MAX_VALUE)
-        {
-            if (nosTempoMin <= ennemyTempoMin)
-                score += 200;
-            else
-                score -= 200 + (ennemyTempoMin - nosTempoMin) * 40;
-        }
+        if (ennemyTempoMin == 1)
+            score -= 50000; // il gagne au prochain coup — quasi defaite
+        else if (ennemyTempoMin == 2)
+            score -= 8000;
+        else if (ennemyTempoMin == 3)
+            score -= 2000;
+
+        if (nosTempoMin == 1)
+            score += 50000;
+        else if (nosTempoMin == 2)
+            score += 8000;
+        else if (nosTempoMin == 3)
+            score += 2000;
 
         return score;
     }
@@ -354,7 +360,7 @@ public class Board
         return boardSize;
     }
 
-    
+
     //remplacer getmoveList par getmoveListordered
     public ArrayList<Move> getMoveListOrdered(Mark markSide)
     {
