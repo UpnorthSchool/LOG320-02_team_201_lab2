@@ -57,7 +57,7 @@ class Client {
 						if(Integer.parseInt(boardValues[i]) == 2)
 						{
 							board8x8.getBoard()[7-x][7-y] = Mark.BLACK;
-							board8x8.setBlackPieceCounter(board8x8.getBlackPiececounter() + 1);
+							board8x8.setBlackPieceCounter(board8x8.getBlackPieceCounter() + 1);
 						}
 
 						if(Integer.parseInt(boardValues[i]) == 4)
@@ -111,7 +111,7 @@ class Client {
 						if(Integer.parseInt(boardValues[i]) == 2)
 						{
 							board8x8.getBoard()[7-x][7-y] = Mark.BLACK;
-							board8x8.setBlackPieceCounter(board8x8.getBlackPiececounter() + 1);
+							board8x8.setBlackPieceCounter(board8x8.getBlackPieceCounter() + 1);
 						}
 
 						if(Integer.parseInt(boardValues[i]) == 4)
@@ -168,6 +168,16 @@ class Client {
 					move = console.readLine();
 					output.write(move.getBytes(), 0, move.length());
 					output.flush();
+
+					// Automatically relaunch the server for a new game
+					try {
+						ProcessBuilder pb = new ProcessBuilder("C:\\Users\\Kevin-pc\\Desktop\\Ecole\\Hiver2026\\LOG320\\equipe_lab\\LOG320-02_team201_lab2\\breakThrough_win11\\boardgame.exe");
+						pb.start();
+						System.out.println("Relaunching boardgame.exe for new game...");
+						Thread.sleep(2000); // Wait 2 seconds for server to start
+					} catch (Exception e) {
+						System.out.println("Error relaunching server: " + e.getMessage());
+					}
 				}
 			}
 		} catch (IOException e) {
@@ -181,14 +191,20 @@ class Client {
 	{
 		intToString encoderMoveAi = new intToString();
 		ArrayList<Move> aiPossibleNextMove= aiMachine.getNextMoveAB(board);
+		//minmax
+		//ArrayList<Move> aiPossibleNextMove= aiMachine.getNextMoveMinMax(board);
 		System.out.println("Move ayant meme score : ");
 		aiPossibleNextMove.forEach( (movePossible) -> { System.out.print(movePossible.toString() +" ; ");});
 		System.out.println();
-		//joue un move random de la liste 
-		int random = ThreadLocalRandom.current().nextInt(0, aiPossibleNextMove.size());
-		Move moveplayed = aiPossibleNextMove.get(random);
-		board.play(moveplayed, aiMachine.getCpuMark());
+		//dans le futur, joue un move random de la liste 
+		//int random = ThreadLocalRandom.current().nextInt(0, aiPossibleNextMove.size());
+		//Move moveplayed = aiPossibleNextMove.get(random);
+		//board.play(moveplayed, aiMachine.getCpuMark());
+		//pour la, jouer le premier move.
+		Move moveplayed = aiPossibleNextMove.get(0);
+		board.play(aiPossibleNextMove.get(0), aiMachine.getCpuMark());
 		return encoderMoveAi.encode(moveplayed);
+
 
 	}
 

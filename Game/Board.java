@@ -112,7 +112,7 @@ public class Board
                     return victoire = true;
                 }
             }
-            if(getBlackPiececounter() == 0)
+            if(getBlackPieceCounter() == 0)
             {
                 return victoire = true;
             }
@@ -198,19 +198,22 @@ public class Board
     {
         Mark adversaire = (mark == Mark.RED) ? Mark.BLACK : Mark.RED;
 
+        // Victoire immediate = score infini
+        if (verifierVictoire(mark))      return 100000;
+        if (verifierVictoire(adversaire)) return -100000;
+
         int score = 0;
 
         // --- Poids ---
-        int poidsMateriel   = 15;
+        int poidsMateriel   =  5;
         int poidsCentre     =  1;
         int poidsProtection =  3;
         int poidsVulnerable = -5;
 
-        // Table d'avancement exponentielle : plus on approche, plus c'est urgent
+        // Table d'avancement exponentielle
         int[] tableAvancement = {0, 1, 2, 4, 8, 16, 32, 100};
 
         // --- Avantage materiel ---
-        // Les compteurs sont maintenus a jour par play() et undoMove()
         int nosPieces      = (mark == Mark.RED) ? redPieceCounter   : blackPieceCounter;
         int piecesEnnemies = (mark == Mark.RED) ? blackPieceCounter : redPieceCounter;
         score += (nosPieces - piecesEnnemies) * poidsMateriel;
@@ -222,12 +225,12 @@ public class Board
             {
                 if (board[x][y] == mark)
                 {
-                    // Avancement exponentiel vers la ligne de victoire
                     int rangee = (mark == Mark.RED) ? y : (boardSize - 1 - y);
                     score += tableAvancement[rangee];
 
-                    // Position centrale
-                    score += (4 - Math.abs(x - (boardSize / 2 - 1))) * poidsCentre;
+                    // Centre : formule symetrique corrigee
+                    double center = (boardSize - 1) / 2.0;
+                    score += (int)((4 - Math.abs(x - center))) * poidsCentre;
 
                     // Protection : pion couvert par un allie derriere lui ?
                     int yDerriere = (mark == Mark.RED) ? y - 1 : y + 1;
@@ -238,8 +241,9 @@ public class Board
                         if (x + 1 < boardSize && board[x + 1][yDerriere] == mark) estProtege = true;
                     }
 
+                    // Protection plus utile en fin de partie (poids inversé)
                     if (estProtege)
-                        score += poidsProtection * (1 + rangee / 2);
+                        score += poidsProtection * (1 + rangee);
                     else if (rangee >= 3)
                         score += poidsVulnerable * (rangee - 2);
                 }
@@ -248,7 +252,8 @@ public class Board
                     int rangee = (adversaire == Mark.RED) ? y : (boardSize - 1 - y);
                     score -= tableAvancement[rangee];
 
-                    score -= (4 - Math.abs(x - (boardSize / 2 - 1))) * poidsCentre;
+                    double center = (boardSize - 1) / 2.0;
+                    score -= (int)((4 - Math.abs(x - center))) * poidsCentre;
 
                     int yDerriere = (adversaire == Mark.RED) ? y - 1 : y + 1;
                     boolean estProtege = false;
@@ -259,55 +264,84 @@ public class Board
                     }
 
                     if (estProtege)
-                        score -= poidsProtection * (1 + rangee / 2);
+                        score -= poidsProtection * (1 + rangee);
                     else if (rangee >= 3)
                         score -= poidsVulnerable * (rangee - 2);
                 }
             }
         }
 
-
-    // Remplacer la detection de pion libre par cette version corrigee
-
-    for (int x = 0; x < boardSize; x++)
-    {
-        for (int y = 0; y < boardSize; y++)
+        // --- Pions libres (passed pawns) ennemis ---
+        // Seuil abaisse a rangee >= 3, penalite plus forte et plus precoce
+        for (int x = 0; x < boardSize; x++)
         {
-            if (board[x][y] == adversaire)
+            for (int y = 0; y < boardSize; y++)
             {
-                int rangeeAdversaire = (adversaire == Mark.RED) ? y : (boardSize - 1 - y);
-
-                if (rangeeAdversaire >= 5)
+                if (board[x][y] == adversaire)
                 {
-                    boolean estBloque = false;
+                    int rangeeAdversaire = (adversaire == Mark.RED) ? y : (boardSize - 1 - y);
 
-                    // Pour bloquer un pion ennemi, nos pions doivent se trouver
-                    // SUR LA MEME COLONNE OU ADJACENTE, entre lui et sa ligne de victoire.
-                    // Pour BLACK (avance vers y=0), ses pions sont bloques par nos pions
-                    // qui se trouvent a des y INFERIEURS (entre lui et y=0).
-                    // Pour RED (avance vers y=7), ses pions sont bloques par nos pions
-                    // qui se trouvent a des y SUPERIEURS (entre lui et y=7).
-
-                    int yVictoire = (adversaire == Mark.RED) ? boardSize - 1 : 0;
-                    int direction = (yVictoire > y) ? 1 : -1;
-
-                    for (int checkY = y + direction;
-                        checkY >= 0 && checkY < boardSize;
-                        checkY += direction)
+                    if (rangeeAdversaire >= 3)
                     {
-                        if (board[x][checkY] == mark)                          { estBloque = true; break; }
-                        if (x > 0           && board[x-1][checkY] == mark)     { estBloque = true; break; }
-                        if (x < boardSize-1 && board[x+1][checkY] == mark)     { estBloque = true; break; }
-                    }
+                        boolean estBloque = false;
+                        int yVictoire = (adversaire == Mark.RED) ? boardSize - 1 : 0;
+                        int direction = (yVictoire > y) ? 1 : -1;
 
-                    if (!estBloque)
-                        score -= 50 * (rangeeAdversaire - 4);
+                        for (int checkY = y + direction;
+                            checkY >= 0 && checkY < boardSize;
+                            checkY += direction)
+                        {
+                            if (board[x][checkY] == mark)                          { estBloque = true; break; }
+                            if (x > 0           && board[x-1][checkY] == mark)     { estBloque = true; break; }
+                            if (x < boardSize-1 && board[x+1][checkY] == mark)     { estBloque = true; break; }
+                        }
+
+                        if (!estBloque)
+                            score -= 30 * rangeeAdversaire; // penalite proportionnelle a l'avancement
+                    }
                 }
             }
         }
-    }
+        //remove trop couteux quand on branche on remplace par getMoveListOrdered
+        // --- Mobilite ---
+        //int nosMoves    = getMoveList(mark).size();
+        //int ennemyMoves = getMoveList(adversaire).size();
+        //score += (nosMoves - ennemyMoves) * 2;
+
+
+        // --- Tempo / course (inspiration Cazenave : race patterns) ---
+        int nosTempoMin    = minMovesToWin(mark);
+        int ennemyTempoMin = minMovesToWin(adversaire);
+
+        if (nosTempoMin != Integer.MAX_VALUE || ennemyTempoMin != Integer.MAX_VALUE)
+        {
+            if (nosTempoMin <= ennemyTempoMin)
+                score += 200;
+            else
+                score -= 200 + (ennemyTempoMin - nosTempoMin) * 40;
+        }
 
         return score;
+    }
+
+    // Estime le nombre minimum de coups pour atteindre la ligne de victoire
+    private int minMovesToWin(Mark mark)
+    {
+        int best     = Integer.MAX_VALUE;
+        int goalRow  = (mark == Mark.RED) ? boardSize - 1 : 0;
+
+        for (int x = 0; x < boardSize; x++)
+        {
+            for (int y = 0; y < boardSize; y++)
+            {
+                if (board[x][y] == mark)
+                {
+                    int dist = Math.abs(goalRow - y);
+                    if (dist < best) best = dist;
+                }
+            }
+        }
+        return best;
     }
     //heuristic : https://www.comp.nus.edu.sg/~kanmy/courses/3243_2006/hw-breakthrough.html
 
@@ -320,6 +354,32 @@ public class Board
         return boardSize;
     }
 
+    
+    //remplacer getmoveList par getmoveListordered
+    public ArrayList<Move> getMoveListOrdered(Mark markSide)
+    {
+        ArrayList<Move> moves = getMoveList(markSide);
+        
+        // Trier : captures d'abord, puis par avancement, puis par centre
+        moves.sort((a, b) -> {
+            // 1. Captures en premier
+            int captureA = (a.getCaptured() != Mark.EMPTY && a.getCaptured() != null) ? 1 : 0;
+            int captureB = (b.getCaptured() != Mark.EMPTY && b.getCaptured() != null) ? 1 : 0;
+            if (captureB != captureA) return captureB - captureA;
+
+            // 2. Plus avancé en premier
+            int advA = (markSide == Mark.RED) ? a.getTowardsRow() : (7 - a.getTowardsRow());
+            int advB = (markSide == Mark.RED) ? b.getTowardsRow() : (7 - b.getTowardsRow());
+            if (advB != advA) return advB - advA;
+
+            // 3. Plus central en premier
+            int centreA = 4 - Math.abs(a.getTowardsCol() - 3);
+            int centreB = 4 - Math.abs(b.getTowardsCol() - 3);
+            return centreB - centreA;
+        });
+
+        return moves;
+    }
 
 
     //@TODO implementer verification pour MARK.rouge ou noir si atteint derniere ligne alors victoire.
@@ -343,7 +403,7 @@ public class Board
     {
         return redPieceCounter;
     }
-    public int getBlackPiececounter()
+    public int getBlackPieceCounter()
     {
         return blackPieceCounter;
     }
