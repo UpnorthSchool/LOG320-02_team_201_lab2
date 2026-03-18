@@ -198,27 +198,22 @@ public class Board
     {
         Mark adversaire = (mark == Mark.RED) ? Mark.BLACK : Mark.RED;
 
-        // Victoire immediate = score infini
-        if (verifierVictoire(mark))      return 100000;
+        if (verifierVictoire(mark))       return 100000;
         if (verifierVictoire(adversaire)) return -100000;
 
         int score = 0;
 
-        // --- Poids ---
-        int poidsMateriel   =  5;
+        int poidsMateriel   =  3;
         int poidsCentre     =  1;
         int poidsProtection =  3;
         int poidsVulnerable = -5;
 
-        // Table d'avancement exponentielle
         int[] tableAvancement = {0, 1, 2, 4, 8, 16, 32, 100};
 
-        // --- Avantage materiel ---
         int nosPieces      = (mark == Mark.RED) ? redPieceCounter   : blackPieceCounter;
         int piecesEnnemies = (mark == Mark.RED) ? blackPieceCounter : redPieceCounter;
         score += (nosPieces - piecesEnnemies) * poidsMateriel;
 
-        // --- Parcours unique du plateau ---
         for (int y = 0; y < boardSize; y++)
         {
             for (int x = 0; x < boardSize; x++)
@@ -228,11 +223,9 @@ public class Board
                     int rangee = (mark == Mark.RED) ? y : (boardSize - 1 - y);
                     score += tableAvancement[rangee];
 
-                    // Centre : formule symetrique corrigee
                     double center = (boardSize - 1) / 2.0;
                     score += (int)((4 - Math.abs(x - center))) * poidsCentre;
 
-                    // Protection : pion couvert par un allie derriere lui ?
                     int yDerriere = (mark == Mark.RED) ? y - 1 : y + 1;
                     boolean estProtege = false;
                     if (yDerriere >= 0 && yDerriere < boardSize)
@@ -241,7 +234,6 @@ public class Board
                         if (x + 1 < boardSize && board[x + 1][yDerriere] == mark) estProtege = true;
                     }
 
-                    // Protection plus utile en fin de partie (poids inversé)
                     if (estProtege)
                         score += poidsProtection * (1 + rangee);
                     else if (rangee >= 3)
@@ -271,8 +263,7 @@ public class Board
             }
         }
 
-        // --- Pions libres (passed pawns) ennemis ---
-        // Seuil abaisse a rangee >= 3, penalite plus forte et plus precoce
+        // --- Pions libres ennemis ---
         for (int x = 0; x < boardSize; x++)
         {
             for (int y = 0; y < boardSize; y++)
@@ -284,57 +275,50 @@ public class Board
                     if (rangeeAdversaire >= 3)
                     {
                         boolean estBloque = false;
-                        int yVictoire = (adversaire == Mark.RED) ? boardSize - 1 : 0;
-                        int direction = (yVictoire > y) ? 1 : -1;
+                        int yVictoire  = (adversaire == Mark.RED) ? boardSize - 1 : 0;
+                        int direction  = (yVictoire > y) ? 1 : -1;
 
                         for (int checkY = y + direction;
                             checkY >= 0 && checkY < boardSize;
                             checkY += direction)
                         {
-                            if (board[x][checkY] == mark)                          { estBloque = true; break; }
-                            if (x > 0           && board[x-1][checkY] == mark)     { estBloque = true; break; }
-                            if (x < boardSize-1 && board[x+1][checkY] == mark)     { estBloque = true; break; }
+                            if (board[x][checkY] == mark)                      { estBloque = true; break; }
+                            if (x > 0           && board[x-1][checkY] == mark) { estBloque = true; break; }
+                            if (x < boardSize-1 && board[x+1][checkY] == mark) { estBloque = true; break; }
                         }
 
                         if (!estBloque)
-                            score -= 30 * rangeeAdversaire; // penalite proportionnelle a l'avancement
+                            score -= 30 * rangeeAdversaire;
                     }
                 }
             }
         }
-        //remove trop couteux quand on branche on remplace par getMoveListOrdered
-        // --- Mobilite ---
-        //int nosMoves    = getMoveList(mark).size();
-        //int ennemyMoves = getMoveList(adversaire).size();
-        //score += (nosMoves - ennemyMoves) * 2;
 
-
-        // --- Tempo / course (inspiration Cazenave : race patterns) ---
+        // --- Tempo / course ---
         int nosTempoMin    = minMovesToWin(mark);
         int ennemyTempoMin = minMovesToWin(adversaire);
 
-        if (ennemyTempoMin == 1)
-            score -= 2000;  // au lieu de 50000
-        else if (ennemyTempoMin == 2)
-            score -= 800;   // au lieu de 8000
-        else if (ennemyTempoMin == 3)
-            score -= 200;   // au lieu de 2000
+        if (ennemyTempoMin == 1)      score -= 2000;
+        else if (ennemyTempoMin == 2) score -= 400;
 
-        if (nosTempoMin == 1)
-            score += 2000;
-        else if (nosTempoMin == 2)
-            score += 800;
-        else if (nosTempoMin == 3)
-            score += 200;
+        if (nosTempoMin == 1)         score += 2000;
+        else if (nosTempoMin == 2)    score += 400;
+
+        // Avantage relatif de course seulement si significatif
+        int diff = ennemyTempoMin - nosTempoMin;
+        if      (diff >= 2) score += 150;
+        else if (diff <= -2) score -= 150;
 
         return score;
     }
 
     // Estime le nombre minimum de coups pour atteindre la ligne de victoire
+    // Tient compte des blocages directs
     private int minMovesToWin(Mark mark)
     {
-        int best     = Integer.MAX_VALUE;
-        int goalRow  = (mark == Mark.RED) ? boardSize - 1 : 0;
+        int best      = Integer.MAX_VALUE;
+        int goalRow   = (mark == Mark.RED) ? boardSize - 1 : 0;
+        int direction = (mark == Mark.RED) ? 1 : -1;
 
         for (int x = 0; x < boardSize; x++)
         {
@@ -343,7 +327,24 @@ public class Board
                 if (board[x][y] == mark)
                 {
                     int dist = Math.abs(goalRow - y);
-                    if (dist < best) best = dist;
+                    if (dist == 0) return 0;
+
+                    // Verifier si le chemin droit est bloque
+                    boolean chemLibre = true;
+                    for (int checkY = y + direction;
+                        checkY != goalRow + direction;
+                        checkY += direction)
+                    {
+                        if (board[x][checkY] != Mark.EMPTY && board[x][checkY] != mark)
+                        {
+                            chemLibre = false;
+                            break;
+                        }
+                    }
+
+                    // Pion libre = distance reelle, bloque = penalite +2
+                    int cout = chemLibre ? dist : dist + 2;
+                    if (cout < best) best = cout;
                 }
             }
         }
@@ -361,24 +362,32 @@ public class Board
     }
 
 
-    //remplacer getmoveList par getmoveListordered
     public ArrayList<Move> getMoveListOrdered(Mark markSide)
     {
+        return getMoveListOrdered(markSide, null, null);
+    }
+
+    public ArrayList<Move> getMoveListOrdered(Mark markSide, Move killer1, Move killer2)
+    {
         ArrayList<Move> moves = getMoveList(markSide);
-        
-        // Trier : captures d'abord, puis par avancement, puis par centre
+
         moves.sort((a, b) -> {
             // 1. Captures en premier
             int captureA = (a.getCaptured() != Mark.EMPTY && a.getCaptured() != null) ? 1 : 0;
             int captureB = (b.getCaptured() != Mark.EMPTY && b.getCaptured() != null) ? 1 : 0;
             if (captureB != captureA) return captureB - captureA;
 
-            // 2. Plus avancé en premier
+            // 2. Killer moves
+            boolean killerA = a.equals(killer1) || a.equals(killer2);
+            boolean killerB = b.equals(killer1) || b.equals(killer2);
+            if (killerA != killerB) return killerB ? 1 : -1;
+
+            // 3. Plus avance en premier
             int advA = (markSide == Mark.RED) ? a.getTowardsRow() : (7 - a.getTowardsRow());
             int advB = (markSide == Mark.RED) ? b.getTowardsRow() : (7 - b.getTowardsRow());
             if (advB != advA) return advB - advA;
 
-            // 3. Plus central en premier
+            // 4. Plus central en premier
             int centreA = 4 - Math.abs(a.getTowardsCol() - 3);
             int centreB = 4 - Math.abs(b.getTowardsCol() - 3);
             return centreB - centreA;

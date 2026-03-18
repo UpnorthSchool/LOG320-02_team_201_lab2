@@ -84,4 +84,16 @@ public class Move
     {
         return (getTowardsCol() + "" + getTowardsRow());
     }
+
+
+    //permet de verifier les killermoves dans alphabeta
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof Move)) return false;
+        Move other = (Move) obj;
+        return this.getFromCol()     == other.getFromCol()
+            && this.getFromRow()     == other.getFromRow()
+            && this.getTowardsCol()  == other.getTowardsCol()
+            && this.getTowardsRow()  == other.getTowardsRow();
+    }
 }
