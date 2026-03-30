@@ -8,74 +8,124 @@ import java.util.List;
 
 public class CPUPlayer {
 
+    // couleur du CPU et de l’adversaire
     private final Mark cpuMark;
     private final Mark opponentMark;
+
+    // algo alpha-beta
     private final AlphaBeta ab;
 
-    private int  numExploredNodes;
-    private static final int MAX_DEPTH    = 8;
-    private static final long TIME_LIMIT_MS = 4200; // safe buffer under 5 s
+    // stats : nombre de noeuds explorés
+    private int numExploredNodes;
+
+    // profondeur max de recherche
+    private static final int MAX_DEPTH = 9;
+
+    // limite de temps : un peu en dessous de 5s pour être safe
+    private static final long TIME_LIMIT_MS = 4300;
 
     public CPUPlayer(Mark cpuMark) {
         this.cpuMark      = cpuMark;
+
+        // déduit automatiquement l’adversaire
         this.opponentMark = (cpuMark == Mark.RED) ? Mark.BLACK : Mark.RED;
-        this.ab           = new AlphaBeta(cpuMark);
+
+        // init alpha-beta
+        this.ab = new AlphaBeta(cpuMark);
     }
 
     /**
-     * Iterative-deepening alpha-beta.
-     * Commits the result of the deepest fully-searched depth before timeout.
+     * iterative deepening + alpha-beta
+     * on garde le meilleur résultat COMPLET avant timeout
      */
     public ArrayList<Move> getNextMove(Board board) {
+
+        // reset compteur + timer
         numExploredNodes = 0;
         ab.resetTimer(TIME_LIMIT_MS);
 
         ArrayList<Move> bestMoves = new ArrayList<>();
-        int        bestScore = Integer.MIN_VALUE;
+        int bestScore = Integer.MIN_VALUE;
 
+        // on augmente la profondeur petit à petit
         for (int depth = 1; depth <= MAX_DEPTH; depth++) {
-            ArrayList<Move> candidateMoves = new ArrayList<>();
-            int        candidateScore = Integer.MIN_VALUE;
 
+            ArrayList<Move> candidateMoves = new ArrayList<>();
+            int candidateScore = Integer.MIN_VALUE;
+
+            // on teste tous les moves possibles
             for (Move move : board.getMoveList(cpuMark)) {
+
+                // stop si timeout
                 if (ab.timedOut) break;
 
+                // on joue le move
                 board.play(move, cpuMark);
-                int score = ab.search(board, opponentMark, depth - 1,
-                                      Integer.MIN_VALUE + 1, Integer.MAX_VALUE,
-                                      this);
+
+                // on lance alpha-beta sur la position
+                int score = ab.search(
+                        board,
+                        opponentMark,
+                        depth - 1,
+                        Integer.MIN_VALUE + 1,
+                        Integer.MAX_VALUE,
+                        this
+                );
+
+                // on annule le move (très important)
                 board.undoMove(move, cpuMark);
 
+                // si timeout pendant search
                 if (ab.timedOut) break;
 
+                // meilleur score trouvé
                 if (score > candidateScore) {
                     candidateScore = score;
                     candidateMoves.clear();
                     candidateMoves.add(move);
-                } else if (score == candidateScore) {
+                }
+                // égalité : on garde plusieurs moves
+                else if (score == candidateScore) {
                     candidateMoves.add(move);
                 }
             }
 
+            // si on a fini cette profondeur sans timeout
             if (!ab.timedOut) {
+
                 bestMoves = candidateMoves;
                 bestScore = candidateScore;
-                System.out.printf("Depth %d done — score: %d, nodes: %d%n",
-                                  depth, bestScore, numExploredNodes);
 
-                // No point searching deeper if a forced result is found
+                System.out.printf(
+                        "Depth %d done : score: %d, nodes: %d%n",
+                        depth, bestScore, numExploredNodes
+                );
+
+                // si on trouve une position quasi gagnante : inutile d’aller plus loin
                 if (Math.abs(bestScore) >= 29000) break;
-            } else {
-                System.out.printf("Timeout at depth %d — keeping depth %d result%n",
-                                  depth, depth - 1);
+            }
+            else {
+                // timeout : on garde le dernier résultat complet
+                System.out.printf(
+                        "Timeout at depth %d : keep depth %d%n",
+                        depth, depth - 1
+                );
                 break;
             }
         }
 
-        return bestMoves.isEmpty() ? board.getMoveList(cpuMark) : bestMoves;
+        // fallback : si jamais rien trouvé (rare)
+        return bestMoves.isEmpty()
+                ? board.getMoveList(cpuMark)
+                : bestMoves;
     }
 
-    public void incrementNodeCounter() { numExploredNodes++; }
+    // appelé par alpha-beta pour compter les noeuds
+    public void incrementNodeCounter() {
+        numExploredNodes++;
+    }
+
+    // getters utiles
     public int  getNumExploredNodes()  { return numExploredNodes; }
     public Mark getCpuMark()           { return cpuMark; }
     public Mark getOpponentMark()      { return opponentMark; }
