@@ -7,203 +7,73 @@ import Game.Move;
 
 public class AlphaBeta {
 
-    private Mark cpuMARK;
+    private final Mark cpuMark;
     private long startTime;
     private long timeLimit;
-    public boolean timeOut;
+    public boolean timedOut;
 
-    private Move[][] killerMoves = new Move[9][2];
-
-    public AlphaBeta(Mark cpuMark)
-    {
-        this.cpuMARK = cpuMark;
+    public AlphaBeta(Mark cpuMark) {
+        this.cpuMark = cpuMark;
     }
 
-    public void resetTimer(long startTime, long timeLimit)
-    {
-        this.startTime = startTime;
-        this.timeLimit = timeLimit;
-        this.timeOut   = false;
-        killerMoves    = new Move[9][2];
+    public void resetTimer(long timeLimitMs) {
+        this.startTime = System.currentTimeMillis();
+        this.timeLimit = timeLimitMs;
+        this.timedOut  = false;
     }
 
-    private Mark getOpponentMark(Mark mark)
-    {
+    private boolean isTimeUp() {
+        if (System.currentTimeMillis() - startTime > timeLimit) {
+            timedOut = true;
+        }
+        return timedOut;
+    }
+
+    private Mark opponent(Mark mark) {
         return (mark == Mark.RED) ? Mark.BLACK : Mark.RED;
     }
 
-    private void storeKiller(int depth, Move move)
-    {
-        if (move == null) return;
-        if (depth >= killerMoves.length) return;
-        if (move.getCaptured() != null && move.getCaptured() != Mark.EMPTY) return;
-        if (move.equals(killerMoves[depth][0])) return;
-        killerMoves[depth][1] = killerMoves[depth][0];
-        killerMoves[depth][0] = move;
-    }
+    /**
+     * Alpha-beta search.
+     * Score is always from cpuMark's perspective.
+     * MAX node when mark == cpuMark, MIN node otherwise.
+     */
+    public int search(Board board, Mark mark, int depth, int alpha, int beta, CPUPlayer counter) {
+        if (isTimeUp()) return 0;
 
-    public boolean isTimeOut()
-    {
-        return timeOut;
-    }
+        counter.incrementNodeCounter();
 
-    // Quiescence search — continues only on captures to avoid
-    // the horizon effect on tactically unstable positions.
-    //
-    // CRITICAL: evaluate() MUST always be called with cpuMARK, not with the
-    // current player's mark. The alpha-beta window (alpha/beta) is maintained
-    // from cpuMARK's perspective throughout the entire tree. Calling
-    // evaluate(mark) where mark = opponentMARK would flip the score's sign,
-    // making odd depths return +score and even depths return 0 (or vice versa)
-    // — the classic "7, 0, 7, 0" oscillation bug.
-    private int quiescence(Board board, Mark mark, CPUPlayer nbExploredNode, int alpha, int beta)
-    {
-        if (System.currentTimeMillis() - startTime > timeLimit)
-        {
-            timeOut = true;
-            return 0;
-        }
+        if (board.verifierVictoire(cpuMark))           return  30000 - depth; // prefer faster wins
+        if (board.verifierVictoire(opponent(cpuMark))) return -30000 + depth; // prefer delayed losses
 
-        nbExploredNode.incrementNodeCounter();
+        if (depth == 0) return board.evaluate(cpuMark);
 
-        // FIX: always evaluate from cpuMARK's perspective, never from mark's.
-        // mark only determines whether this is a MAX or MIN node — it does NOT
-        // change whose perspective the score is computed from.
-        // UPDATED: pass isMax so evaluate knows whose turn it is for turn-aware logic.
-        boolean isMax = (mark == cpuMARK);
-        int standPat = board.evaluate(cpuMARK, isMax);
+        boolean isMax = (mark == cpuMark);
 
-        if (isMax)
-        {
-            // MAX node: we want to raise alpha
-            if (standPat >= beta) return beta;
-            if (standPat > alpha) alpha = standPat;
-
-            for (Move move : board.getMoveListOrdered(mark, null, null))
-            {
-                if (move.getCaptured() == null || move.getCaptured() == Mark.EMPTY) continue;
-
+        if (isMax) {
+            int best = Integer.MIN_VALUE + 1;
+            for (Move move : board.getMoveList(mark)) {
+                if (timedOut) break;
                 board.play(move, mark);
-                int score = quiescence(board, getOpponentMark(mark), nbExploredNode, alpha, beta);
+                int score = search(board, opponent(mark), depth - 1, alpha, beta, counter);
                 board.undoMove(move, mark);
-
-                if (timeOut) return 0;
-
-                if (score >= beta) return beta;
-                if (score > alpha) alpha = score;
+                if (score > best)  best  = score;
+                if (best  > alpha) alpha = best;
+                if (best  >= beta) break; // cut-off
             }
-            return alpha;
-        }
-        else
-        {
-            // MIN node: we want to lower beta
-            if (standPat <= alpha) return alpha;
-            if (standPat < beta)  beta = standPat;
-
-            for (Move move : board.getMoveListOrdered(mark, null, null))
-            {
-                if (move.getCaptured() == null || move.getCaptured() == Mark.EMPTY) continue;
-
+            return best;
+        } else {
+            int best = Integer.MAX_VALUE;
+            for (Move move : board.getMoveList(mark)) {
+                if (timedOut) break;
                 board.play(move, mark);
-                int score = quiescence(board, getOpponentMark(mark), nbExploredNode, alpha, beta);
+                int score = search(board, opponent(mark), depth - 1, alpha, beta, counter);
                 board.undoMove(move, mark);
-
-                if (timeOut) return 0;
-
-                if (score <= alpha) return alpha;
-                if (score < beta)  beta = score;
+                if (score < best)  best = score;
+                if (best  < beta)  beta = best;
+                if (best  <= alpha) break; // cut-off
             }
-            return beta;
-        }
-    }
-
-    public int alphaBeta(Board board, Mark alphaBetaMark, CPUPlayer nbExploredNode, int alpha, int beta, int depth)
-    {
-        if (System.currentTimeMillis() - startTime > timeLimit)
-        {
-            timeOut = true;
-            return 0;
-        }
-
-        nbExploredNode.incrementNodeCounter();
-
-        // Terminal states — always scored from cpuMARK's perspective.
-        // Depth bonus: prefer faster wins, prefer to delay losses.
-        if (board.verifierVictoire(cpuMARK))
-            return 30000 - depth;
-
-        if (board.verifierVictoire(getOpponentMark(cpuMARK)))
-            return -30000 + depth;
-
-        if (depth == 0)
-            return quiescence(board, alphaBetaMark, nbExploredNode, alpha, beta);
-
-        Move k1 = (depth < killerMoves.length) ? killerMoves[depth][0] : null;
-        Move k2 = (depth < killerMoves.length) ? killerMoves[depth][1] : null;
-
-        boolean isMax = (alphaBetaMark == cpuMARK);
-
-        if (isMax)
-        {
-            int  bestScore = Integer.MIN_VALUE + 1;
-            Move bestMove  = null;
-
-            for (Move move : board.getMoveListOrdered(alphaBetaMark, k1, k2))
-            {
-                if (timeOut) break;
-
-                board.play(move, alphaBetaMark);
-                int score = alphaBeta(board, getOpponentMark(alphaBetaMark), nbExploredNode, alpha, beta, depth - 1);
-                board.undoMove(move, alphaBetaMark);
-
-                if (timeOut) break;
-
-                if (score > bestScore)
-                {
-                    bestScore = score;
-                    bestMove  = move;
-                }
-
-                alpha = Math.max(alpha, bestScore);
-
-                if (bestScore >= beta)
-                {
-                    storeKiller(depth, move);
-                    break;
-                }
-            }
-            return bestScore;
-        }
-        else
-        {
-            int  bestScore = Integer.MAX_VALUE;
-            Move bestMove  = null;
-
-            for (Move move : board.getMoveListOrdered(alphaBetaMark, k1, k2))
-            {
-                if (timeOut) break;
-
-                board.play(move, alphaBetaMark);
-                int score = alphaBeta(board, getOpponentMark(alphaBetaMark), nbExploredNode, alpha, beta, depth - 1);
-                board.undoMove(move, alphaBetaMark);
-
-                if (timeOut) break;
-
-                if (score < bestScore)
-                {
-                    bestScore = score;
-                    bestMove  = move;
-                }
-
-                beta = Math.min(beta, bestScore);
-
-                if (bestScore <= alpha)
-                {
-                    storeKiller(depth, move);
-                    break;
-                }
-            }
-            return bestScore;
+            return best;
         }
     }
 }

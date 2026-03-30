@@ -190,28 +190,24 @@ class Client {
 	public static String cpuMovePlay(Board board, CPUPlayer aiMachine)
 	{
 		intToString encoderMoveAi = new intToString();
-		ArrayList<Move> aiPossibleNextMove= aiMachine.getNextMoveAB(board);
-		//minmax
-		//ArrayList<Move> aiPossibleNextMove= aiMachine.getNextMoveMinMax(board);
+
+		ArrayList<Move> aiPossibleNextMove = aiMachine.getNextMove(board); // was getNextMoveAB
+
 		System.out.println("Move ayant meme score : ");
-		aiPossibleNextMove.forEach( (movePossible) -> { System.out.print(movePossible.toString() +" ; ");});
+		aiPossibleNextMove.forEach((movePossible) -> { System.out.print(movePossible.toString() + " ; "); });
 		System.out.println();
-		
+
 		// When multiple moves have the same score, pick the best one
 		// Prefer: captures first, then most advanced pieces
-		Move moveplayed = selectBestMoveFromTies(aiPossibleNextMove, board, aiMachine.getCpuMark());
-		board.play(moveplayed, aiMachine.getCpuMark());
-		return encoderMoveAi.encode(moveplayed);
+		Move movePlayed = selectBestMoveFromTies(aiPossibleNextMove, board, aiMachine.getCpuMark());
+		board.play(movePlayed, aiMachine.getCpuMark());
+		return encoderMoveAi.encode(movePlayed);
 	}
 
 	/**
 	 * Select the best move from a list of moves with equal scores.
 	 * 
-	 * The moves are already ordered optimally by getMoveListOrdered() in CPUPlayer:
-	 * 1. Captures first (highest priority)
-	 * 2. Killer moves (historically caused pruning)
-	 * 3. Advancement toward goal
-	 * 4. Centering
+	 * The moves are already ordered optimally by getMoveListOrdered() in CPUPlayer
 	 * 
 	 * We simply return the first move, trusting this pre-ordering.
 	 */
