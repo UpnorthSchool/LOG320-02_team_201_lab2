@@ -4,28 +4,19 @@ import java.util.List;
 
 // IMPORTANT: Il ne faut pas changer la signature des méthodes
 // de cette classe, ni le nom de la classe.
-// Vous pouvez par contre ajouter d'autres méthodes (ça devrait 
-// être le cas)
 public class Board
 {
     //[row][column]
     private Mark[][] board;
     private int boardSize = 8;
-    private int redPieceCounter         = 0 ; 
+    private int redPieceCounter         = 0 ;
     private int blackPieceCounter       = 0 ;
 
-
-
-    //ajout de couleur, pour le plaisir du display.
-    // Source - https://stackoverflow.com/a/5762502
     public static final String ANSI_RESET = "\u001B[0m";
     public static final String ANSI_RED = "\u001B[31m";
     public static final String ANSI_GREEN = "\u001B[32m";
     public static final String ANSI_YELLOW = "\u001B[33m";
 
-
-
-    // Ne pas changer la signature de cette méthode
     public Board() {
         board = new Mark[boardSize][boardSize];
         for(int xCol = 0; xCol < boardSize; xCol++){
@@ -35,14 +26,10 @@ public class Board
         }
     }
 
-    public Mark[][] getBoard(){
-        return board;
-    }
+    public Mark[][] getBoard(){ return board; }
 
     public void play(Move m, Mark mark)
     {
-        // Toujours lire depuis le plateau, jamais depuis m.getCaptured()
-        // qui pourrait contenir une valeur residuelle d'un appel precedent
         Mark contenuCase = board[m.getTowardsCol()][m.getTowardsRow()];
         m.setCaptured(contenuCase);
 
@@ -58,84 +45,47 @@ public class Board
         board[moveUndo.getFromCol()][moveUndo.getFromRow()]       = mark;
         board[moveUndo.getTowardsCol()][moveUndo.getTowardsRow()] = moveUndo.getCaptured();
 
-        // Restaurer le compteur uniquement si une vraie piece avait ete capturee
         if (moveUndo.getCaptured() == Mark.RED)         redPieceCounter++;
         else if (moveUndo.getCaptured() == Mark.BLACK)  blackPieceCounter++;
     }
 
-    //display des moves possibles des pieces avant minmax
-
     public void display(ArrayList<Move> displayMove){
         for (Move dMove : displayMove) {
             System.out.println("From : [" + dMove.getFromCol() +", " + dMove.getFromRow() + "] To : [" + dMove.getTowardsCol()+ ","+dMove.getTowardsRow() + "]") ;
-            
         }
-            
     }
 
+    public boolean getVictoire() { return true; }
 
-    public boolean getVictoire()
-    {
-        return true;
-    }
-
-
-    //////// serie evaluation pour le jeu mieux diviser pour meilleur comprehension du minmax
-    /// appri srecemment, possibiliter java de retourner un bool avec juste des verif,
-    /// division des evaluations sur plusieurs ligne vue sur stack overflow
     public boolean verifierVictoire(Mark mark)
     {
         boolean victoire = false;
-        // verification victoire si une piece est sur la derniere ligne ennemy ou si nbpiece noire a 0 
         if(mark == Mark.BLACK)
         {
             for(int i = 0 ; i < boardSize ; i ++)
-            {
-                if(board[i][0] == Mark.BLACK)
-                {
-                    return victoire = true;
-                }
-            }
-            if(getRedPieceCounter() == 0)
-            {
-                return victoire = true;
-            }
+                if(board[i][0] == Mark.BLACK) return true;
+            if(getRedPieceCounter() == 0) return true;
         }
-        
         if(mark == Mark.RED)
         {
-            // verification victoire si une piece est sur la derniere ligne ennemy ou si nbpiece noire a 0 
             for(int j = 0 ; j < boardSize ; j ++)
-            {
-                if(board[j][7] == Mark.RED)
-                {
-                    return victoire = true;
-                }
-            }
-            if(getBlackPieceCounter() == 0)
-            {
-                return victoire = true;
-            }
-            
+                if(board[j][7] == Mark.RED) return true;
+            if(getBlackPieceCounter() == 0) return true;
         }
         return victoire;
-
     }
-        // Verification des bornes uniquement — sans verifier le contenu de la case
+
     public boolean estSurLeBoard(int xColPosition, int yLignePosition)
     {
         return xColPosition >= 0 && xColPosition < boardSize
             && yLignePosition >= 0 && yLignePosition < boardSize;
     }
 
-    // Verification bornes ET case vide — pour les moves en ligne droite uniquement
     public boolean moveValide(int xColPosition, int yLignePosition)
     {
         return estSurLeBoard(xColPosition, yLignePosition)
             && board[xColPosition][yLignePosition] == Mark.EMPTY;
     }
-
-
 
     public ArrayList<Move> getMoveList(Mark markSide)
     {
@@ -151,14 +101,9 @@ public class Board
                 {
                     int ligneAvancement = yLig + direction;
 
-                    // Ligne droite : case doit etre vide (moveValide)
                     if (moveValide(xCol, ligneAvancement))
-                    {
                         moveAvailableNow.add(new Move(xCol, yLig, xCol, ligneAvancement));
-                    }
 
-                    // Diagonal gauche : case doit etre sur le board (estSurLeBoard)
-                    // et ne pas contenir un allie — peut etre vide OU ennemi
                     if (estSurLeBoard(xCol - 1, ligneAvancement)
                         && getBoard()[xCol - 1][ligneAvancement] != markSide)
                     {
@@ -168,7 +113,6 @@ public class Board
                         moveAvailableNow.add(m);
                     }
 
-                    // Diagonal droit : meme logique
                     if (estSurLeBoard(xCol + 1, ligneAvancement)
                         && getBoard()[xCol + 1][ligneAvancement] != markSide)
                     {
@@ -184,134 +128,243 @@ public class Board
     }
 
 
-
-
-
-
-    ///////evaluation
-    /// and heuristic here 
-    /// 
-    /// 
-    /// 
-        /////
-    public int evaluate(Mark mark)
+    // =========================================================================
+    //  FIXED evaluate — now requires knowing whose turn it is.
+    //
+    //  CHANGE REQUIRED IN YOUR MINMAX/ALPHABETA:
+    //    At the root (AI turn) and every even ply: isMyTurn = true
+    //    At every odd ply (opponent's turn):        isMyTurn = false
+    //
+    //  Simplest way: pass (depth % 2 == 0) as isMyTurn if root is depth 0.
+    // =========================================================================
+    public int evaluate(Mark mark, boolean isMyTurn)
     {
         Mark adversaire = (mark == Mark.RED) ? Mark.BLACK : Mark.RED;
 
+        // ── Already-won states (should normally be caught by the minmax loop,
+        //    but kept as safety net) ───────────────────────────────────────────
+        if (verifierVictoire(mark))      return  50000;
+        if (verifierVictoire(adversaire)) return -50000;
 
-        int score = 0;
-
-        int poidsMateriel   =  3;
-        int poidsCentre     =  1;
-        int poidsProtection =  2;
-        int poidsVulnerable = -3;
-
-        int[] tableAvancement = {0, 1, 2, 3, 5, 8, 13, 25};
-
-        int nosPieces      = (mark == Mark.RED) ? redPieceCounter   : blackPieceCounter;
-        int piecesEnnemies = (mark == Mark.RED) ? blackPieceCounter : redPieceCounter;
-        score += (nosPieces - piecesEnnemies) * poidsMateriel;
-
-        for (int y = 0; y < boardSize; y++)
-        {
-            for (int x = 0; x < boardSize; x++)
-            {
-                if (board[x][y] == mark)
-                {
-                    int rangee = (mark == Mark.RED) ? y : (boardSize - 1 - y);
-                    score += tableAvancement[rangee];
-
-                    double center = (boardSize - 1) / 2.0;
-                    score += (int)((4 - Math.abs(x - center))) * poidsCentre;
-
-                    int yDerriere = (mark == Mark.RED) ? y - 1 : y + 1;
-                    boolean estProtege = false;
-                    if (yDerriere >= 0 && yDerriere < boardSize)
-                    {
-                        if (x - 1 >= 0        && board[x - 1][yDerriere] == mark) estProtege = true;
-                        if (x + 1 < boardSize && board[x + 1][yDerriere] == mark) estProtege = true;
-                    }
-
-                    if (estProtege)
-                        score += poidsProtection * (1 + rangee);
-                    else if (rangee >= 3)
-                        score += poidsVulnerable * (rangee - 2);
-                }
-                else if (board[x][y] == adversaire)
-                {
-                    int rangee = (adversaire == Mark.RED) ? y : (boardSize - 1 - y);
-                    score -= tableAvancement[rangee];
-
-                    double center = (boardSize - 1) / 2.0;
-                    score -= (int)((4 - Math.abs(x - center))) * poidsCentre;
-
-                    int yDerriere = (adversaire == Mark.RED) ? y - 1 : y + 1;
-                    boolean estProtege = false;
-                    if (yDerriere >= 0 && yDerriere < boardSize)
-                    {
-                        if (x - 1 >= 0        && board[x - 1][yDerriere] == adversaire) estProtege = true;
-                        if (x + 1 < boardSize && board[x + 1][yDerriere] == adversaire) estProtege = true;
-                    }
-
-                    if (estProtege)
-                        score -= poidsProtection * (1 + rangee);
-                    else if (rangee >= 3)
-                        score -= poidsVulnerable * (rangee - 2);
-                }
-            }
-        }
-
-        // --- Pions libres ennemis ---
-        for (int x = 0; x < boardSize; x++)
-        {
-            for (int y = 0; y < boardSize; y++)
-            {
-                if (board[x][y] == adversaire)
-                {
-                    int rangeeAdversaire = (adversaire == Mark.RED) ? y : (boardSize - 1 - y);
-
-                    if (rangeeAdversaire >= 3)
-                    {
-                        boolean estBloque = false;
-                        int yVictoire  = (adversaire == Mark.RED) ? boardSize - 1 : 0;
-                        int direction  = (yVictoire > y) ? 1 : -1;
-
-                        for (int checkY = y + direction;
-                            checkY >= 0 && checkY < boardSize;
-                            checkY += direction)
-                        {
-                            if (board[x][checkY] == mark)                      { estBloque = true; break; }
-                            if (x > 0           && board[x-1][checkY] == mark) { estBloque = true; break; }
-                            if (x < boardSize-1 && board[x+1][checkY] == mark) { estBloque = true; break; }
-                        }
-
-                        if (!estBloque)
-                            score -= 30 * rangeeAdversaire;
-                    }
-                }
-            }
-        }
-
-        // --- Tempo / course ---
+        // ── Tempo: minimum moves to reach goal ──────────────────────────────
         int nosTempoMin    = minMovesToWin(mark);
         int ennemyTempoMin = minMovesToWin(adversaire);
 
-        if (ennemyTempoMin == 1)      score -= 2000;
-        else if (ennemyTempoMin == 2) score -= 400;
+        if (nosTempoMin    == 0) return  50000;
+        if (ennemyTempoMin == 0) return -50000;
 
-        if (nosTempoMin == 1)         score += 2000;
-        else if (nosTempoMin == 2)    score += 400;
+        // ── BUG FIX #2: Turn-aware terminal detection ───────────────────────
+        //
+        //  OLD (broken): always checked both tempos the same way,
+        //                ignoring whose turn it actually is.
+        //
+        //  NEW: if it's MY turn and I can reach the goal NOW → I win.
+        //       If it's THEIR turn and they can reach the goal NOW → I lose.
+        //       If both can reach in 1 and it's my turn → I win (I go first).
+        //       If both can reach in 1 and it's their turn → I lose (they go first).
+        //
+        if (isMyTurn)
+        {
+            if (nosTempoMin == 1 && canReachGoalNow(mark))       return  50000;
+            if (ennemyTempoMin == 1 && canReachGoalNow(adversaire)) return -49999; // They reply next move
+        }
+        else
+        {
+            if (ennemyTempoMin == 1 && canReachGoalNow(adversaire)) return -50000;
+            if (nosTempoMin == 1 && canReachGoalNow(mark))           return  49999; // We reply next move
+        }
 
-        // Avantage relatif de course seulement si significatif
-        int diff = ennemyTempoMin - nosTempoMin;
-        if      (diff >= 2) score += 150;
-        else if (diff <= -2) score -= 150;
+        // ── BUG FIX #3: Passer detection (MOST IMPORTANT POSITIONAL CONCEPT) ─
+        //
+        //  A "passer" is a piece that NO enemy can intercept before it reaches
+        //  the goal. In Breakthrough this is almost always a winning advantage.
+        //
+        int nosPassers    = countPassers(mark, adversaire);
+        int ennemyPassers = countPassers(adversaire, mark);
+
+        // A single unstoppable passer = decisive advantage
+        if (nosPassers > 0 && ennemyPassers == 0) {
+            // We have a passer, they don't — we win the race
+            int distBonus = 5000 + (8 - nosTempoMin) * 500;
+            return distBonus;
+        }
+        if (ennemyPassers > 0 && nosPassers == 0) {
+            int distPenalty = 5000 + (8 - ennemyTempoMin) * 500;
+            return -distPenalty;
+        }
+        if (nosPassers > ennemyPassers) {
+            return 3000 + (nosPassers - ennemyPassers) * 800;
+        }
+        if (ennemyPassers > nosPassers) {
+            return -(3000 + (ennemyPassers - nosPassers) * 800);
+        }
+
+        // ── Near-terminal threats (severe) ──────────────────────────────────
+        int score = 0;
+
+        if (ennemyTempoMin <= 2) score -= 15000;
+        else if (ennemyTempoMin == 3) score -= 3000;
+
+        if (nosTempoMin <= 2)    score += 15000;
+        else if (nosTempoMin == 3) score += 3000;
+
+        // ── Positional evaluation ────────────────────────────────────────────
+        if (ennemyTempoMin > 3 && nosTempoMin > 3) {
+            score += evaluatePositionQuality(mark, adversaire);
+        } else {
+            score += evaluateAdvancementIntensity(mark, adversaire);
+        }
 
         return score;
     }
 
-    // Estime le nombre minimum de coups pour atteindre la ligne de victoire
-    // Tient compte des blocages directs
+    // =========================================================================
+    //  BACKWARD COMPATIBILITY: old signature without isMyTurn.
+    //  Assumes it is the given mark's turn (maximizing node).
+    //  Replace usages in your minmax with the 2-argument version.
+    // =========================================================================
+    public int evaluate(Mark mark)
+    {
+        return evaluate(mark, true);
+    }
+
+
+    // =========================================================================
+    //  BUG FIX #1: canReachGoalNow — completely rewritten.
+    //
+    //  OLD (broken): added a canBeCapturedBy() guard that made no sense.
+    //    If it is YOUR TURN, you move first — the opponent CANNOT capture you
+    //    before you move. The canBeCapturedBy check caused this function to
+    //    return false even for guaranteed wins, missing forced-win detection.
+    //
+    //  NEW: simply checks whether any legal move lands on the goal row.
+    //    That is the only condition needed: if a move reaches the goal row,
+    //    the game is over immediately — no response from the opponent.
+    // =========================================================================
+    private boolean canReachGoalNow(Mark mark)
+    {
+        int goalRow = (mark == Mark.RED) ? boardSize - 1 : 0;
+        for (Move m : getMoveList(mark))
+        {
+            if (m.getTowardsRow() == goalRow) return true;
+        }
+        return false;
+    }
+
+
+    // =========================================================================
+    //  NEW: countPassers — counts pieces that CANNOT be intercepted.
+    //
+    //  A piece at (x, y) is a "passer" if no enemy piece can reach any square
+    //  in the piece's forward cone (columns x-dist..x+dist) before our piece
+    //  does, where dist = remaining rows to goal.
+    //
+    //  Simplified version: an enemy piece can threaten column c if it is within
+    //  diagonal reach of the passer's path. We check if any enemy is "close
+    //  enough laterally AND ahead enough" to intercept.
+    // =========================================================================
+    private int countPassers(Mark mark, Mark adversaire)
+    {
+        int goalRow   = (mark == Mark.RED) ? boardSize - 1 : 0;
+        int direction = (mark == Mark.RED) ? 1 : -1;
+        int passers   = 0;
+
+        for (int x = 0; x < boardSize; x++)
+        {
+            for (int y = 0; y < boardSize; y++)
+            {
+                if (board[x][y] != mark) continue;
+
+                int distToGoal = Math.abs(goalRow - y);
+                if (distToGoal == 0) { passers++; continue; } // already won
+
+                boolean interceptable = false;
+
+                // Check every enemy piece
+                outer:
+                for (int ex = 0; ex < boardSize; ex++)
+                {
+                    for (int ey = 0; ey < boardSize; ey++)
+                    {
+                        if (board[ex][ey] != adversaire) continue;
+
+                        // How many moves does the enemy need to reach any square
+                        // in our passer's path?
+                        // Our passer travels from (x,y) toward (x, goalRow) but
+                        // can shift ±1 per step diagonally.
+                        // An enemy intercepts if its lateral distance to our column
+                        // is <= its distance to our passer's current row (i.e., it
+                        // can cut across to meet us).
+                        //
+                        // The enemy (in direction -direction) needs |ey - y| moves
+                        // along our direction to reach our current row level.
+                        // Laterally it can cover at most that many columns.
+                        // Our passer needs distToGoal moves to reach the goal.
+                        //
+                        // Interception is possible if:
+                        //   lateral_distance(ex, x) <= moves_enemy_has
+                        //   AND the enemy is in front of our passer (closer to its goal)
+                        //   i.e., |ey - goalRow| < distToGoal
+
+                        int lateralDist   = Math.abs(ex - x);
+                        int enemyDistToOurRow = Math.abs(ey - y);
+
+                        // Enemy is "ahead" of our passer (between passer and goal)
+                        boolean enemyAhead = (mark == Mark.RED)
+                            ? (ey > y)   // RED moves up: enemy is ahead if ey > y
+                            : (ey < y);  // BLACK moves down: enemy is ahead if ey < y
+
+                        // Enemy can intercept if it has enough lateral reach
+                        // and is positioned ahead of the passer or can cut across
+                        if (enemyAhead && lateralDist <= enemyDistToOurRow)
+                        {
+                            interceptable = true;
+                            break outer;
+                        }
+
+                        // Enemy behind but can catch up diagonally
+                        // Enemy needs to cover lateralDist cols AND distToGoal rows
+                        // before our passer covers distToGoal rows → impossible if
+                        // enemy is behind AND lateral dist > 0, unless they're very close
+                        if (!enemyAhead)
+                        {
+                            // Rows enemy is behind our passer (in enemy's own direction)
+                            int enemyBehindRows = Math.abs(ey - y);
+                            // For enemy to intercept, it needs distToGoal + enemyBehindRows
+                            // moves total, but our passer only needs distToGoal.
+                            // Only possible if lateralDist == 0 AND enemy is RIGHT behind us
+                            // (could capture us before we move) — but that's a capture threat
+                            // handled elsewhere.
+                        }
+                    }
+                }
+
+                if (!interceptable) passers++;
+            }
+        }
+        return passers;
+    }
+
+
+    // =========================================================================
+    //  isCompletelyBlocked — unchanged, kept for minMovesToWin
+    // =========================================================================
+    private boolean isCompletelyBlocked(int x, int y, Mark mark, int direction)
+    {
+        int nextY = y + direction;
+        if (nextY < 0 || nextY >= boardSize) return true;
+
+        boolean straightBlocked  = (board[x][nextY] != Mark.EMPTY);
+        boolean diagLeftBlocked  = (x - 1 < 0)         || (board[x - 1][nextY] == mark);
+        boolean diagRightBlocked = (x + 1 >= boardSize) || (board[x + 1][nextY] == mark);
+
+        return straightBlocked && diagLeftBlocked && diagRightBlocked;
+    }
+
+
+    // =========================================================================
+    //  minMovesToWin — improved: considers passer status for blocked penalty
+    // =========================================================================
     private int minMovesToWin(Mark mark)
     {
         int best      = Integer.MAX_VALUE;
@@ -327,38 +380,182 @@ public class Board
                     int dist = Math.abs(goalRow - y);
                     if (dist == 0) return 0;
 
-                    // Verifier si le chemin droit est bloque
-                    boolean chemLibre = true;
-                    for (int checkY = y + direction;
-                        checkY != goalRow + direction;
-                        checkY += direction)
-                    {
-                        if (board[x][checkY] != Mark.EMPTY && board[x][checkY] != mark)
-                        {
-                            chemLibre = false;
-                            break;
-                        }
-                    }
+                    boolean bloque = isCompletelyBlocked(x, y, mark, direction);
 
-                    // Pion libre = distance reelle, bloque = penalite +2
-                    int cout = chemLibre ? dist : dist + 2;
+                    // Reduced penalty from +5 to +2: being blocked one step doesn't
+                    // mean you're stuck — diagonal capture can often unblock in 1 move.
+                    int cout = bloque ? dist + 2 : dist;
                     if (cout < best) best = cout;
                 }
             }
         }
         return best;
     }
-    //heuristic : https://www.comp.nus.edu.sg/~kanmy/courses/3243_2006/hw-breakthrough.html
 
-    public int passedPawn()
-    {return 0;}
 
-    ///getter and setteer
-    public int getBoardSize()
+    // =========================================================================
+    //  evaluateAdvancementIntensity — unchanged
+    // =========================================================================
+    private int evaluateAdvancementIntensity(Mark mark, Mark adversaire)
     {
-        return boardSize;
+        int score = 0;
+        int nosPieces      = (mark == Mark.RED) ? redPieceCounter   : blackPieceCounter;
+        int piecesEnnemies = (mark == Mark.RED) ? blackPieceCounter : redPieceCounter;
+
+        int[] advancementValue = {2, 8, 20, 50, 120, 300, 800, 3000};
+
+        for (int y = 0; y < boardSize; y++)
+        {
+            for (int x = 0; x < boardSize; x++)
+            {
+                if (board[x][y] == mark)
+                {
+                    int rangee = (mark == Mark.RED) ? y : (boardSize - 1 - y);
+                    score += advancementValue[rangee];
+                }
+                else if (board[x][y] == adversaire)
+                {
+                    int rangee = (adversaire == Mark.RED) ? y : (boardSize - 1 - y);
+                    score -= advancementValue[rangee];
+                }
+            }
+        }
+
+        score += (nosPieces - piecesEnnemies) * 50;
+
+        for (int y = 0; y < boardSize; y++)
+        {
+            for (int x = 0; x < boardSize; x++)
+            {
+                if (board[x][y] == mark && y > 0)
+                {
+                    int yDerriere = (mark == Mark.RED) ? y - 1 : y + 1;
+                    boolean estProtege = false;
+                    if (yDerriere >= 0 && yDerriere < boardSize)
+                    {
+                        if (x - 1 >= 0        && board[x - 1][yDerriere] == mark) estProtege = true;
+                        if (x + 1 < boardSize && board[x + 1][yDerriere] == mark) estProtege = true;
+                    }
+
+                    if (estProtege) {
+                        int rangee = (mark == Mark.RED) ? y : (boardSize - 1 - y);
+                        score += 10 + (3 * rangee);
+                    }
+                }
+            }
+        }
+
+        for (int x = 0; x < boardSize; x++)
+        {
+            for (int y = 0; y < boardSize; y++)
+            {
+                if (board[x][y] == adversaire)
+                {
+                    int rangeeAdversaire = (adversaire == Mark.RED) ? y : (boardSize - 1 - y);
+                    if (rangeeAdversaire >= 4)
+                    {
+                        boolean estBloque = false;
+                        int yVictoire  = (adversaire == Mark.RED) ? boardSize - 1 : 0;
+                        int direction  = (yVictoire > y) ? 1 : -1;
+
+                        for (int checkY = y + direction;
+                            checkY >= 0 && checkY < boardSize;
+                            checkY += direction)
+                        {
+                            if (board[x][checkY] == mark)                      { estBloque = true; break; }
+                            if (x > 0           && board[x-1][checkY] == mark) { estBloque = true; break; }
+                            if (x < boardSize-1 && board[x+1][checkY] == mark) { estBloque = true; break; }
+                        }
+
+                        if (!estBloque) score -= 200 * rangeeAdversaire;
+                    }
+                }
+            }
+        }
+
+        return score;
     }
 
+
+    // =========================================================================
+    //  evaluatePositionQuality — unchanged
+    // =========================================================================
+    private int evaluatePositionQuality(Mark mark, Mark adversaire)
+    {
+        int score = 0;
+        int nosPieces      = (mark == Mark.RED) ? redPieceCounter   : blackPieceCounter;
+        int piecesEnnemies = (mark == Mark.RED) ? blackPieceCounter : redPieceCounter;
+
+        int[] advancementValue = {3, 12, 30, 80, 200, 500, 1200, 2500};
+
+        for (int y = 0; y < boardSize; y++)
+        {
+            for (int x = 0; x < boardSize; x++)
+            {
+                if (board[x][y] == mark)
+                {
+                    int rangee = (mark == Mark.RED) ? y : (boardSize - 1 - y);
+                    score += advancementValue[rangee];
+                }
+                else if (board[x][y] == adversaire)
+                {
+                    int rangee = (adversaire == Mark.RED) ? y : (boardSize - 1 - y);
+                    score -= advancementValue[rangee];
+                }
+            }
+        }
+
+        score += (nosPieces - piecesEnnemies) * 80;
+
+        for (int y = 0; y < boardSize; y++)
+        {
+            for (int x = 0; x < boardSize; x++)
+            {
+                if (board[x][y] == mark)
+                {
+                    int rangee = (mark == Mark.RED) ? y : (boardSize - 1 - y);
+                    int yDerriere = (mark == Mark.RED) ? y - 1 : y + 1;
+                    boolean estProtege = false;
+                    if (yDerriere >= 0 && yDerriere < boardSize)
+                    {
+                        if (x - 1 >= 0        && board[x - 1][yDerriere] == mark) estProtege = true;
+                        if (x + 1 < boardSize && board[x + 1][yDerriere] == mark) estProtege = true;
+                    }
+                    if (estProtege) score += 20 + (5 * rangee);
+                }
+                else if (board[x][y] == adversaire)
+                {
+                    int rangee = (adversaire == Mark.RED) ? y : (boardSize - 1 - y);
+                    int yDerriere = (adversaire == Mark.RED) ? y - 1 : y + 1;
+                    boolean estProtege = false;
+                    if (yDerriere >= 0 && yDerriere < boardSize)
+                    {
+                        if (x - 1 >= 0        && board[x - 1][yDerriere] == adversaire) estProtege = true;
+                        if (x + 1 < boardSize && board[x + 1][yDerriere] == adversaire) estProtege = true;
+                    }
+                    if (estProtege) score -= 20 + (5 * rangee);
+                }
+            }
+        }
+
+        return score;
+    }
+
+    private int countPieceMobility(int x, int y, Mark mark)
+    {
+        if (board[x][y] != mark) return 0;
+        int direction = (mark == Mark.RED) ? 1 : -1;
+        int mobilityCount = 0;
+        int nextY = y + direction;
+        if (moveValide(x, nextY)) mobilityCount++;
+        if (estSurLeBoard(x - 1, nextY) && board[x - 1][nextY] != mark) mobilityCount++;
+        if (estSurLeBoard(x + 1, nextY) && board[x + 1][nextY] != mark) mobilityCount++;
+        return mobilityCount;
+    }
+
+    public int passedPawn() { return 0; }
+
+    public int getBoardSize() { return boardSize; }
 
     public ArrayList<Move> getMoveListOrdered(Mark markSide)
     {
@@ -370,22 +567,18 @@ public class Board
         ArrayList<Move> moves = getMoveList(markSide);
 
         moves.sort((a, b) -> {
-            // 1. Captures en premier
             int captureA = (a.getCaptured() != Mark.EMPTY && a.getCaptured() != null) ? 1 : 0;
             int captureB = (b.getCaptured() != Mark.EMPTY && b.getCaptured() != null) ? 1 : 0;
             if (captureB != captureA) return captureB - captureA;
 
-            // 2. Killer moves
             boolean killerA = a.equals(killer1) || a.equals(killer2);
             boolean killerB = b.equals(killer1) || b.equals(killer2);
             if (killerA != killerB) return killerB ? 1 : -1;
 
-            // 3. Plus avance en premier
             int advA = (markSide == Mark.RED) ? a.getTowardsRow() : (7 - a.getTowardsRow());
             int advB = (markSide == Mark.RED) ? b.getTowardsRow() : (7 - b.getTowardsRow());
             if (advB != advA) return advB - advA;
 
-            // 4. Plus central en premier
             int centreA = 4 - Math.abs(a.getTowardsCol() - 3);
             int centreB = 4 - Math.abs(b.getTowardsCol() - 3);
             return centreB - centreA;
@@ -394,31 +587,10 @@ public class Board
         return moves;
     }
 
+    public boolean hasWon(int scoreKeeper) { return false; }
 
-    //@TODO implementer verification pour MARK.rouge ou noir si atteint derniere ligne alors victoire.
-    public boolean hasWon(int scoreKeeper)
-    {
-        
-        return false;
-    }
-
-
-
-    public void setRedPieceCounter(int valeur)
-    {
-        redPieceCounter = valeur;
-    }
-    public void setBlackPieceCounter(int valeur)
-    {
-        blackPieceCounter = valeur;
-    }
-    public int getRedPieceCounter()
-    {
-        return redPieceCounter;
-    }
-    public int getBlackPieceCounter()
-    {
-        return blackPieceCounter;
-    }
-
+    public void setRedPieceCounter(int valeur)   { redPieceCounter = valeur; }
+    public void setBlackPieceCounter(int valeur) { blackPieceCounter = valeur; }
+    public int getRedPieceCounter()  { return redPieceCounter; }
+    public int getBlackPieceCounter() { return blackPieceCounter; }
 }

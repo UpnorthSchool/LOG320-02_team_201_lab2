@@ -196,16 +196,29 @@ class Client {
 		System.out.println("Move ayant meme score : ");
 		aiPossibleNextMove.forEach( (movePossible) -> { System.out.print(movePossible.toString() +" ; ");});
 		System.out.println();
-		//dans le futur, joue un move random de la liste 
-		//int random = ThreadLocalRandom.current().nextInt(0, aiPossibleNextMove.size());
-		//Move moveplayed = aiPossibleNextMove.get(random);
-		//board.play(moveplayed, aiMachine.getCpuMark());
-		//pour la, jouer le premier move.
-		Move moveplayed = aiPossibleNextMove.get(0);
-		board.play(aiPossibleNextMove.get(0), aiMachine.getCpuMark());
+		
+		// When multiple moves have the same score, pick the best one
+		// Prefer: captures first, then most advanced pieces
+		Move moveplayed = selectBestMoveFromTies(aiPossibleNextMove, board, aiMachine.getCpuMark());
+		board.play(moveplayed, aiMachine.getCpuMark());
 		return encoderMoveAi.encode(moveplayed);
+	}
 
-
+	/**
+	 * Select the best move from a list of moves with equal scores.
+	 * 
+	 * The moves are already ordered optimally by getMoveListOrdered() in CPUPlayer:
+	 * 1. Captures first (highest priority)
+	 * 2. Killer moves (historically caused pruning)
+	 * 3. Advancement toward goal
+	 * 4. Centering
+	 * 
+	 * We simply return the first move, trusting this pre-ordering.
+	 */
+	private static Move selectBestMoveFromTies(ArrayList<Move> moves, Board board, Mark playerMark)
+	{
+		if (moves.isEmpty()) return null;
+		return moves.get(0);  // Trust getMoveListOrdered's ordering
 	}
 
 

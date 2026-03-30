@@ -47,8 +47,15 @@ public class AlphaBeta {
         return timeOut;
     }
 
-    // Quiescence search — continue uniquement sur les captures
-    // pour eviter l'horizon effect sur les positions tactiques instables
+    // Quiescence search — continues only on captures to avoid
+    // the horizon effect on tactically unstable positions.
+    //
+    // CRITICAL: evaluate() MUST always be called with cpuMARK, not with the
+    // current player's mark. The alpha-beta window (alpha/beta) is maintained
+    // from cpuMARK's perspective throughout the entire tree. Calling
+    // evaluate(mark) where mark = opponentMARK would flip the score's sign,
+    // making odd depths return +score and even depths return 0 (or vice versa)
+    // — the classic "7, 0, 7, 0" oscillation bug.
     private int quiescence(Board board, Mark mark, CPUPlayer nbExploredNode, int alpha, int beta)
     {
         if (System.currentTimeMillis() - startTime > timeLimit)
@@ -59,28 +66,55 @@ public class AlphaBeta {
 
         nbExploredNode.incrementNodeCounter();
 
-        // Score de la position sans jouer — si c'est deja bon, on coupe
-        int standPat = board.evaluate(cpuMARK);
+        // FIX: always evaluate from cpuMARK's perspective, never from mark's.
+        // mark only determines whether this is a MAX or MIN node — it does NOT
+        // change whose perspective the score is computed from.
+        // UPDATED: pass isMax so evaluate knows whose turn it is for turn-aware logic.
+        boolean isMax = (mark == cpuMARK);
+        int standPat = board.evaluate(cpuMARK, isMax);
 
-        if (standPat >= beta) return beta;
-        if (standPat > alpha) alpha = standPat;
-
-        // Chercher uniquement les captures
-        for (Move move : board.getMoveListOrdered(mark, null, null))
+        if (isMax)
         {
-            if (move.getCaptured() == null || move.getCaptured() == Mark.EMPTY) continue;
+            // MAX node: we want to raise alpha
+            if (standPat >= beta) return beta;
+            if (standPat > alpha) alpha = standPat;
 
-            board.play(move, mark);
-            int score = quiescence(board, getOpponentMark(mark), nbExploredNode, alpha, beta);
-            board.undoMove(move, mark);
+            for (Move move : board.getMoveListOrdered(mark, null, null))
+            {
+                if (move.getCaptured() == null || move.getCaptured() == Mark.EMPTY) continue;
 
-            if (timeOut) return 0;
+                board.play(move, mark);
+                int score = quiescence(board, getOpponentMark(mark), nbExploredNode, alpha, beta);
+                board.undoMove(move, mark);
 
-            if (score >= beta) return beta;
-            if (score > alpha) alpha = score;
+                if (timeOut) return 0;
+
+                if (score >= beta) return beta;
+                if (score > alpha) alpha = score;
+            }
+            return alpha;
         }
+        else
+        {
+            // MIN node: we want to lower beta
+            if (standPat <= alpha) return alpha;
+            if (standPat < beta)  beta = standPat;
 
-        return alpha;
+            for (Move move : board.getMoveListOrdered(mark, null, null))
+            {
+                if (move.getCaptured() == null || move.getCaptured() == Mark.EMPTY) continue;
+
+                board.play(move, mark);
+                int score = quiescence(board, getOpponentMark(mark), nbExploredNode, alpha, beta);
+                board.undoMove(move, mark);
+
+                if (timeOut) return 0;
+
+                if (score <= alpha) return alpha;
+                if (score < beta)  beta = score;
+            }
+            return beta;
+        }
     }
 
     public int alphaBeta(Board board, Mark alphaBetaMark, CPUPlayer nbExploredNode, int alpha, int beta, int depth)
@@ -93,13 +127,14 @@ public class AlphaBeta {
 
         nbExploredNode.incrementNodeCounter();
 
+        // Terminal states — always scored from cpuMARK's perspective.
+        // Depth bonus: prefer faster wins, prefer to delay losses.
         if (board.verifierVictoire(cpuMARK))
-            return 30000 + depth;
+            return 30000 - depth;
 
         if (board.verifierVictoire(getOpponentMark(cpuMARK)))
-            return -30000 - depth;
+            return -30000 + depth;
 
-        // Remplace evaluate() direct par quiescence aux feuilles
         if (depth == 0)
             return quiescence(board, alphaBetaMark, nbExploredNode, alpha, beta);
 
@@ -110,7 +145,7 @@ public class AlphaBeta {
 
         if (isMax)
         {
-            int  bestScore = Integer.MIN_VALUE;
+            int  bestScore = Integer.MIN_VALUE + 1;
             Move bestMove  = null;
 
             for (Move move : board.getMoveListOrdered(alphaBetaMark, k1, k2))

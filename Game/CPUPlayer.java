@@ -12,12 +12,11 @@ public class CPUPlayer
     private ArrayList<Move> movePossibleUncheck = new ArrayList<>();
     public AlphaBeta abMinMax;
     public MinMax    minMax;
-    //changement pour tester iterative deepening, on commence a un et on augmente tant quil y a du temps.
     private int depth = 8;
 
     public CPUPlayer(Mark cpu){
         setCpuMark(cpu);
-        setOpponentMark((cpu == Mark.RED) ? Mark.BLACK : Mark.RED);
+        setOpponentMARK((cpu == Mark.RED) ? Mark.BLACK : Mark.RED);
         abMinMax = new AlphaBeta(cpu);
         minMax   = new MinMax(cpu);
     }
@@ -59,7 +58,7 @@ public class CPUPlayer
     {
         numExploredNodes = 0;
         long startTime = System.currentTimeMillis();
-        long timeLimit = 4200; // plus conservateur
+        long timeLimit = 4200;
 
         ArrayList<Move> bestMoves = new ArrayList<>();
         int bestScore = Integer.MIN_VALUE;
@@ -69,14 +68,22 @@ public class CPUPlayer
         for (int currentDepth = 1; currentDepth <= 8; currentDepth++)
         {
             ArrayList<Move> candidateMoves = new ArrayList<>();
-            int candidateScore = Integer.MIN_VALUE;
+            int             candidateScore = Integer.MIN_VALUE;
 
             for (Move move : board.getMoveListOrdered(cpuMARK))
             {
-                if (abMinMax.timeOut) break; // timeout detecte dans la recursion
+                if (abMinMax.timeOut) break;
 
                 board.play(move, cpuMARK);
-                int score = abMinMax.alphaBeta(board, opponentMARK, this, Integer.MIN_VALUE, Integer.MAX_VALUE, currentDepth);
+                // Pass depth-1 to alpha-beta; true for isMyTurn means it's opponent's turn next
+                int score = abMinMax.alphaBeta(
+                    board,
+                    opponentMARK,
+                    this,
+                    Integer.MIN_VALUE + 1,
+                    Integer.MAX_VALUE,
+                    currentDepth - 1
+                );
                 board.undoMove(move, cpuMARK);
 
                 if (abMinMax.timeOut) break;
@@ -95,9 +102,40 @@ public class CPUPlayer
 
             if (!abMinMax.timeOut)
             {
-                bestMoves = candidateMoves;
-                bestScore = candidateScore;
-                System.out.println("Depth " + currentDepth + " completee, score = " + bestScore);
+                System.out.println("Depth " + currentDepth + " completee, score = " + candidateScore);
+
+                // ── WHY THE ODD/EVEN CHECK ─────────────────────────────────────────────
+                //
+                // The root loop plays ONE cpu ply before calling alphaBeta(depth-1).
+                // Total plies searched = currentDepth:
+                //
+                //   Odd  depth (1,3,5,7) → last ply belongs to CPU → leaf reflects
+                //                          CPU's extra advancement → score is POSITIVE
+                //                          and meaningful.
+                //
+                //   Even depth (2,4,6,8) → last ply belongs to opponent → from any
+                //                          symmetric position both sides are equally
+                //                          advanced → evaluation returns ~0 for ALL
+                //                          moves → AI cannot distinguish good from bad.
+                //
+                // Fix: only commit to results from ODD depths (stable, positive scores).
+                //
+                // Exception 1: forced win/loss found (|score| >= 29000) — always commit
+                //              regardless of parity so we never miss a forced win.
+                //
+                // Exception 2: if the even-depth score is CLEARLY better than what we
+                //              had before (candidateScore > bestScore + 50), it found
+                //              real asymmetry (e.g. one move leads to a capture) → commit.
+                // ──────────────────────────────────────────────────────────────────────
+                boolean forcedTerminal  = Math.abs(candidateScore) >= 29000;
+                boolean clearlyBetter   = candidateScore > bestScore + 50;
+                boolean isOddDepth      = (currentDepth % 2 == 1);
+
+                if (isOddDepth || forcedTerminal || clearlyBetter)
+                {
+                    bestMoves = candidateMoves;
+                    bestScore = candidateScore;
+                }
             }
             else
             {
@@ -108,6 +146,12 @@ public class CPUPlayer
 
         System.out.println("nb node explored : " + getNumOfExploredNodes());
         System.out.println("Bestscore found = " + bestScore);
+
+        System.out.print("Move ayant meme score :\n");
+        for (Move m : bestMoves)
+            System.out.print(m.getFromCol() + "" + m.getFromRow() + " ; ");
+        System.out.println();
+
         return bestMoves.isEmpty() ? board.getMoveList(cpuMARK) : bestMoves;
     }
 
@@ -117,9 +161,9 @@ public class CPUPlayer
         return movePossibleUncheck;
     }
 
-    public void setCpuMark(Mark cpu)       { cpuMARK = cpu; }
-    public Mark getCpuMark()               { return cpuMARK; }
-    public void setOpponentMark(Mark o)    { opponentMARK = o; }
-    public Mark getOpponentMark()          { return opponentMARK; }
-    public void incrementNodeCounter()     { this.numExploredNodes++; }
+    public void setCpuMark(Mark cpu)        { cpuMARK     = cpu; }
+    public Mark getCpuMark()                { return cpuMARK; }
+    public void setOpponentMARK(Mark o)     { opponentMARK = o; }
+    public Mark getOpponentMark()           { return opponentMARK; }
+    public void incrementNodeCounter()      { this.numExploredNodes++; }
 }
