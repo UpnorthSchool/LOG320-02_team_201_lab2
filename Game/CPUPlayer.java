@@ -4,6 +4,7 @@ import Game.Algorythme.AlphaBeta;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class CPUPlayer {
@@ -46,6 +47,9 @@ public class CPUPlayer {
 
         ArrayList<Move> bestMoves = new ArrayList<>();
         int bestScore = Integer.MIN_VALUE;
+        
+        // Pre-order root moves: captures first, then advancement
+        ArrayList<Move> rootMoves = orderRootMoves(board, board.getMoveList(cpuMark));
 
         // on augmente la profondeur petit à petit
         for (int depth = 1; depth <= MAX_DEPTH; depth++) {
@@ -54,7 +58,7 @@ public class CPUPlayer {
             int candidateScore = Integer.MIN_VALUE;
 
             // on teste tous les moves possibles
-            for (Move move : board.getMoveList(cpuMark)) {
+            for (Move move : rootMoves) {
 
                 // stop si timeout
                 if (ab.timedOut) break;
@@ -124,6 +128,32 @@ public class CPUPlayer {
     // appelé par alpha-beta pour compter les noeuds
     public void incrementNodeCounter() {
         numExploredNodes++;
+    }
+    
+    /**
+     * Order moves at root level: captures first, then advancement
+     * Ensures better pruning at deeper levels
+     */
+    private ArrayList<Move> orderRootMoves(Board board, ArrayList<Move> moves) {
+        ArrayList<Move> ordered = new ArrayList<>(moves);
+        
+        ordered.sort((m1, m2) -> {
+            // Captures are best
+            boolean m1Captures = m1.getCaptured() != Mark.EMPTY;
+            boolean m2Captures = m2.getCaptured() != Mark.EMPTY;
+            
+            if (m1Captures != m2Captures) {
+                return m1Captures ? -1 : 1;
+            }
+            
+            // Then by advancement
+            int m1Advance = (cpuMark == Mark.RED) ? m1.getTowardsRow() : -m1.getTowardsRow();
+            int m2Advance = (cpuMark == Mark.RED) ? m2.getTowardsRow() : -m2.getTowardsRow();
+            
+            return Integer.compare(m2Advance, m1Advance);
+        });
+        
+        return ordered;
     }
 
     // getters utiles

@@ -208,10 +208,12 @@ public class Board
 
     // =========================================================================
     // countPassers : check si une pièce peut être bloquée ou non
+    // OPTIMIZED: check only relevant enemies instead of all board positions
     // =========================================================================
     private int countPassers(Mark mark, Mark adversaire)
     {
         int goalRow = (mark == Mark.RED) ? boardSize - 1 : 0;
+        int direction = (mark == Mark.RED) ? 1 : -1;
         int passers = 0;
 
         for (int x = 0; x < boardSize; x++) {
@@ -229,17 +231,21 @@ public class Board
 
                 boolean interceptable = false;
 
+                // Only check relevant rows ahead (not entire board)
+                int startRow = (mark == Mark.RED) ? y + 1 : y - 1;
+                int endRow   = (mark == Mark.RED) ? boardSize : -1;
+
                 outer:
-                for (int ex = 0; ex < boardSize; ex++) {
-                    for (int ey = 0; ey < boardSize; ey++) {
+                for (int ey = startRow; (direction > 0 && ey < endRow) || (direction < 0 && ey > endRow); ey += direction) {
+                    for (int ex = 0; ex < boardSize; ex++) {
 
                         if (board[ex][ey] != adversaire) continue;
 
-                        boolean enemyAhead = (mark == Mark.RED) ? (ey > y) : (ey < y);
                         int lateralDist   = Math.abs(ex - x);
+                        int verticalDist  = Math.abs(ey - y);
 
-                        // ennemi peut intercepter
-                        if (enemyAhead && lateralDist <= Math.abs(ey - y)) {
+                        // ennemi peut intercepter si lateral distance <= vertical distance
+                        if (lateralDist <= verticalDist) {
                             interceptable = true;
                             break outer;
                         }
@@ -249,6 +255,7 @@ public class Board
                 if (!interceptable) passers++;
             }
         }
+
         return passers;
     }
 
