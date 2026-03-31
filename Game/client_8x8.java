@@ -193,12 +193,9 @@ class Client {
 
 		ArrayList<Move> aiPossibleNextMove = aiMachine.getNextMove(board); // was getNextMoveAB
 
-		System.out.println("Move ayant meme score : ");
-		aiPossibleNextMove.forEach((movePossible) -> { System.out.print(movePossible.toString() + " ; "); });
+		System.out.println("Nombre de move ayant meme score : " + aiPossibleNextMove.size());
+		//aiPossibleNextMove.forEach((movePossible) -> { System.out.print(movePossible.toString() + " ; "); });
 		System.out.println();
-
-		// When multiple moves have the same score, pick the best one
-		// Prefer: captures first, then most advanced pieces
 		Move movePlayed = selectBestMoveFromTies(aiPossibleNextMove, board, aiMachine.getCpuMark());
 		board.play(movePlayed, aiMachine.getCpuMark());
 		return encoderMoveAi.encode(movePlayed);

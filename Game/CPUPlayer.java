@@ -102,7 +102,8 @@ public class CPUPlayer {
                 );
 
                 // si on trouve une position quasi gagnante : inutile d’aller plus loin
-                if (Math.abs(bestScore) >= 29000) break;
+                // BUT : on continue même si on perd, pour trouver le meilleur move parmi les pertes
+                if (bestScore >= 29000) break;
             }
             else {
                 // timeout : on garde le dernier résultat complet
