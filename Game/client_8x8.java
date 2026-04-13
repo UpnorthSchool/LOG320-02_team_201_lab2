@@ -13,6 +13,19 @@ class Client {
 
 	static Mark adversaire;
 	public static void main(String[] args) {
+		String host = "localhost";
+		int port = 8888;
+		if (args.length >= 1 && args[0] != null && !args[0].isBlank()) {
+			host = args[0];
+		}
+		if (args.length >= 2) {
+			try {
+				port = Integer.parseInt(args[1]);
+			} catch (NumberFormatException e) {
+				System.out.println("Port invalide, utilisation du port par défaut 8888.");
+			}
+		}
+		System.out.println("Connexion à " + host + ":" + port);
 		Socket MyClient;
 		BufferedInputStream input;
 		BufferedOutputStream output;
